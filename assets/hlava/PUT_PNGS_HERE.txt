@@ -1,0 +1,10 @@
+Drop the HLAVA (head) PNG images in this folder.
+
+Each .png file here becomes one option in the HLAVA picker, shown in
+alphabetical order by filename. Unlike POZADIE/TELO, HLAVA does NOT
+replace -- every tap ADDS a new instance to the canvas, up to 4 at once
+(further taps are ignored until one is deleted). Each instance can be
+dragged, rotated, and pinch-resized independently, and deleted via the X
+badge shown on it while selected.
+
+Delete this text file once you've added real artwork.

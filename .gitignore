@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# Exported compositions -- generated at runtime (see main.py), not source.
+exports/*
+!exports/.gitkeep
+
+# Claude Code local settings -- machine-specific, not project content.
+.claude/
