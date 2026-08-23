@@ -8,3 +8,11 @@ exports/*
 
 # Claude Code local settings -- machine-specific, not project content.
 .claude/
+
+# Real SMTP credentials -- see email_config.example.py for the template
+# that IS tracked. Copy it to email_config.py and fill in real values;
+# that copy stays local/on the kiosk only, never committed.
+email_config.py
+
+# Debug screenshots from live-testing the running app.
+_debug_*.png
