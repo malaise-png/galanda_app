@@ -12,10 +12,10 @@
 TEXT = {
     "en": {
         "tutorial_button": "INFO",
-        "tutorial_title": "Hi, welcome!",
         # Placeholder tutorial body -- replace this with the real instructions
         # whenever they're ready. Use \n\n for a paragraph break.
         "tutorial_body": (
+            "Hi, welcome! \n\n"
             "Create your own artwork inspired by the paintings of Mikuláš Galanda. "
             "First, choose a background, and then gradually add the body, arms, "
             "head, eyes, or various objects.You can move, rotate, "
@@ -40,10 +40,10 @@ TEXT = {
     },
     "sk": {
         "tutorial_button": "INFO",
-        "tutorial_title": "Ahoj, vitaj!",
         # Placeholder text -- rovnaký text ako v angličtine, len preložený.
         # Nahraď skutočným návodom, keď bude pripravený.
         "tutorial_body": (
+            "Ahoj, vitaj! \n\n"
             "Vytvor si vlastné dielo inšpirované obrazmi Mikuláša Galandu. "
             "Najskôr si vyber pozadie a potom postupne pridávaj telo, ruky, "
             "hlavu, oči alebo rôzne predmety. Jednotlivé časti môžeš presúvať, "

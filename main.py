@@ -272,6 +272,12 @@ class GalandaApp(App):
         until a send actually succeeds."""
         import datetime
 
+        # Deselecting first hides the selection highlight and the X delete
+        # badge on whatever image was selected -- both are drawn as part
+        # of that image's own canvas/children, so without this they'd show
+        # up in the exported picture too.
+        self.state.select_target("canvas")
+
         os.makedirs(EXPORT_DIR, exist_ok=True)
         filename = "galanda_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
         filepath = os.path.join(EXPORT_DIR, filename)

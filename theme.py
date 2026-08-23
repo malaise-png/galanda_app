@@ -78,11 +78,6 @@ CATEGORY_THUMBNAIL_SIZE = (200, 200)
 # Height of the floating email-entry bar shown when POSLAŤ is tapped.
 EMAIL_BAR_HEIGHT = 460
 
-# Height of the info/tutorial dropdown. It floats flush against the top of
-# the screen, overlaying the top bar/category bar/canvas beneath it (not
-# pushing them down) -- see TutorialPanel in menu_widgets.py.
-TUTORIAL_PANEL_HEIGHT = 400
-
 # Gap left on each side between the dropdown and the screen edge, so it
 # doesn't span edge-to-edge.
 DROPDOWN_SIDE_MARGIN = 24
@@ -140,9 +135,17 @@ SELECTION_HIGHLIGHT_WIDTH = 2
 # set this to the path of a .ttf file, e.g. os.path.join(BASE_DIR, "fonts", "MyFont.ttf").
 FONT_NAME = os.path.join(BASE_DIR, "fonts", "RoobertTRIAL-Medium.ttf")
 
-FONT_SIZE_SMALL = "16sp"
-FONT_SIZE_NORMAL = "20sp"
-FONT_SIZE_LARGE = "28sp"
+# These apply everywhere EXCEPT the start/intro screen (see
+# INTRO_BUTTON_FONT_SIZE below), which keeps its own separate size so
+# changes here don't affect it.
+FONT_SIZE_SMALL = "22sp"
+FONT_SIZE_NORMAL = "28sp"
+FONT_SIZE_LARGE = "40sp"
+
+# The intro screen's START/Nová kompozícia label -- frozen at the size
+# FONT_SIZE_LARGE used to be, deliberately not tied to it, so it doesn't
+# move if FONT_SIZE_LARGE changes later.
+INTRO_BUTTON_FONT_SIZE = "28sp"
 
 
 def font_kwargs():
@@ -175,3 +178,36 @@ IMAGE_SCALE_MAX = 3.0
 # frame rather than staying screen-space fixed.
 DELETE_BUTTON_SIZE = (44, 44)
 DELETE_BUTTON_COLOR = (0.8, 0.15, 0.15, 1)
+
+# ---------------------------------------------------------------------------
+# Icons
+# ---------------------------------------------------------------------------
+
+ICON_DIR = os.path.join(BASE_DIR, "icon")
+
+# Icon shown to the left of each label on the bottom bar buttons (back.png/
+# new.png/send.png) -- see _IconButton in menu_widgets.py. These are
+# detailed illustrations, not simple flat glyphs (native sizes run from
+# ~660px to ~1200px), so a small box loses most of their detail no matter
+# the source format -- but keep_ratio still means bigger isn't
+# automatically better for every icon's own proportions, so this sits
+# between the original 32px and the 56px that turned out too big.
+BUTTON_ICON_SIZE = (44, 44)
+
+# start.png/back.png on the intro screen are full illustrations (native
+# 997x1600 / 1228x809) -- see _IntroButton in intro_screen.py -- so they
+# get a much bigger box than the other icon buttons.
+INTRO_BUTTON_ICON_SIZE = (120, 165)
+
+# Gap between the icon and the label: vertical (icon centered above the
+# label) on the start screen, horizontal (icon to the left of the label)
+# on the end screen shown after a send -- see _IntroButton.set_stacked().
+INTRO_BUTTON_SPACING = 28
+INTRO_BUTTON_SIDE_SPACING = 20
+
+# Left/right arrow icons flanking an open category picker's scrolling row
+# -- between the original 48px and the 24px that turned out too small.
+SCROLL_ARROW_SIZE = (36, 36)
+# How far one tap on an arrow scrolls the picker, as a fraction (0-1) of
+# its total scrollable range.
+SCROLL_STEP = 0.25

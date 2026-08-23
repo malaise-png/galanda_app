@@ -18,6 +18,7 @@
 # switches. Widgets in this file never talk to each other directly; they
 # only call methods on App.get_running_app().state (see app_state.py).
 
+import os
 import re
 
 from kivy.app import App
@@ -91,6 +92,51 @@ def _make_button(text_key, on_press, color=None):
     button.bind(on_press=lambda *_args: on_press())
     App.get_running_app().register_i18n(button, text_key)
     return button
+
+
+class _IconButton(ButtonBehavior, AnchorLayout):
+    """A themed, borderless button like _make_button(), but with an icon to
+    the left of its label. The icon+label pair is centered as a group
+    within the button's full bounds (which stays the tap target), rather
+    than pinned to one side, so it looks the same as a plain _make_button
+    label just with an icon added.
+
+    Dims (via opacity) while disabled, since a custom composite like this
+    doesn't get Button's automatic disabled-dimming for free."""
+
+    def __init__(self, icon_path, text_key, on_press, **kwargs):
+        kwargs.setdefault("anchor_x", "center")
+        kwargs.setdefault("anchor_y", "center")
+        super().__init__(**kwargs)
+        self.bind(on_press=lambda *_args: on_press())
+        self.bind(disabled=self._refresh_disabled_look)
+
+        content = BoxLayout(orientation="horizontal", spacing=8, size_hint=(None, None))
+        content.bind(minimum_width=content.setter("width"), minimum_height=content.setter("height"))
+
+        icon = Image(
+            source=icon_path,
+            size_hint=(None, None),
+            size=theme.BUTTON_ICON_SIZE,
+            allow_stretch=True,
+            keep_ratio=True,
+        )
+        content.add_widget(icon)
+
+        self.label = Label(
+            font_size=theme.FONT_SIZE_NORMAL,
+            **theme.font_kwargs(),
+            color=theme.ACCENT_COLOR,
+            size_hint=(None, None),
+        )
+        self.label.bind(texture_size=self.label.setter("size"))
+        App.get_running_app().register_i18n(self.label, text_key)
+        content.add_widget(self.label)
+
+        self.add_widget(content)
+
+    def _refresh_disabled_look(self, _instance, disabled):
+        self.opacity = 0.4 if disabled else 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -186,17 +232,24 @@ class TutorialPanel(BoxLayout):
     canvas underneath while it's supposed to be invisible.
 
     A plain white line along its bottom edge is its only border, and it's
-    narrower than the screen by DROPDOWN_SIDE_MARGIN on each side."""
+    narrower than the screen by DROPDOWN_SIDE_MARGIN on each side. Its
+    height isn't fixed -- it grows to fit however much tutorial_body text
+    actually ends up in translations.py (see body_label below), so nothing
+    gets clipped no matter how long that text is.
+
+    Swallows any touch that lands within its own bounds (see
+    on_touch_down) so the category bar/canvas it's covering can't be
+    tapped through it while it's open."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("orientation", "vertical")
         kwargs.setdefault("size_hint", (None, None))
         kwargs.setdefault("width", theme.SCREEN_WIDTH - 2 * theme.DROPDOWN_SIDE_MARGIN)
-        kwargs.setdefault("height", theme.TUTORIAL_PANEL_HEIGHT)
         kwargs.setdefault("pos_hint", {"center_x": 0.5, "top": 1})
         kwargs.setdefault("padding", 16)
         kwargs.setdefault("spacing", 8)
         super().__init__(**kwargs)
+        self.bind(minimum_height=self.setter("height"))
         _add_flat_background(self, theme.PANEL_BACKGROUND_COLOR)
 
         with self.canvas.after:
@@ -205,32 +258,34 @@ class TutorialPanel(BoxLayout):
         self.bind(pos=self._update_outline, size=self._update_outline)
         self._update_outline()
 
-        self.title_label = Label(
-            font_size=theme.FONT_SIZE_LARGE,
-            **theme.font_kwargs(),
-            color=theme.ACCENT_COLOR,
-            size_hint_y=None,
-            height=40,
-            halign="left",
-            valign="middle",
-        )
-        self.title_label.bind(size=lambda *_a: setattr(self.title_label, "text_size", self.title_label.size))
-        App.get_running_app().register_i18n(self.title_label, "tutorial_title")
-        self.add_widget(self.title_label)
-
         self.body_label = Label(
             font_size=theme.FONT_SIZE_NORMAL,
             **theme.font_kwargs(),
             color=theme.TEXT_COLOR,
             halign="left",
             valign="top",
+            size_hint_y=None,
         )
-        self.body_label.bind(size=lambda *_a: setattr(self.body_label, "text_size", self.body_label.size))
+        # Constrain wrapping to the label's width only (height=None), then
+        # take whatever height that wrapped text naturally needs -- rather
+        # than the old size->text_size=self.size, which constrained the
+        # text into a box only as tall as the panel's own fixed height
+        # allowed, clipping/overflowing it if the text needed more room.
+        self.body_label.bind(width=lambda *_a: setattr(self.body_label, "text_size", (self.body_label.width, None)))
+        self.body_label.bind(texture_size=lambda *_a: setattr(self.body_label, "height", self.body_label.texture_size[1]))
         App.get_running_app().register_i18n(self.body_label, "tutorial_body")
         self.add_widget(self.body_label)
 
     def _update_outline(self, *_args):
         self._outline.points = [self.x, self.y, self.right, self.y]
+
+    def on_touch_down(self, touch):
+        # Neither label underneath claims touches, so without this, a tap
+        # on the dropdown would just fall through to whatever's visually
+        # behind it (the category bar, mainly) instead of being swallowed
+        # by the dropdown that's covering it.
+        handled = super().on_touch_down(touch)
+        return handled or self.collide_point(*touch.pos)
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +339,19 @@ class AssetThumbnailButton(ButtonBehavior, Image):
         super().__init__(source=path, **kwargs)
 
 
+class _ScrollArrowButton(ButtonBehavior, Image):
+    """The left.png/right.png arrow flanking an open category picker's
+    scrolling row -- tapping one nudges the ScrollView by
+    theme.SCROLL_STEP."""
+
+    def __init__(self, icon_path, **kwargs):
+        kwargs.setdefault("size_hint", (None, 1))
+        kwargs.setdefault("width", theme.SCROLL_ARROW_SIZE[0])
+        kwargs.setdefault("allow_stretch", True)
+        kwargs.setdefault("keep_ratio", True)
+        super().__init__(source=icon_path, **kwargs)
+
+
 class CategoryPickerPanel(BoxLayout):
     """Floating horizontal scroller shown right under the category bar
     while a category is open. main.py adds/removes this from the root
@@ -315,14 +383,27 @@ class CategoryPickerPanel(BoxLayout):
         self._empty_container = AnchorLayout(anchor_x="center", anchor_y="center", size_hint=(1, 1))
         self._empty_container.add_widget(self._empty_label)
 
-        # Shown once the category has PNGs: a plain left-to-right
-        # scrolling row. In practice a populated category has enough
-        # thumbnails to overflow the panel width anyway, so scrolling
-        # (not centering) is what actually matters here.
+        # Shown once the category has PNGs: left.png/right.png arrows
+        # flanking a plain left-to-right scrolling row. In practice a
+        # populated category has enough thumbnails to overflow the panel
+        # width anyway, so scrolling (not centering) is what actually
+        # matters here.
         self._scroll = ScrollView(size_hint=(1, 1), do_scroll_x=True, do_scroll_y=False)
         self._row = BoxLayout(orientation="horizontal", spacing=16, padding=16, size_hint_x=None)
         self._row.bind(minimum_width=self._row.setter("width"))
         self._scroll.add_widget(self._row)
+
+        self._scroll_row = BoxLayout(orientation="horizontal", size_hint=(1, 1), spacing=8, padding=(8, 0))
+        left_arrow = _ScrollArrowButton(os.path.join(theme.ICON_DIR, "left.png"))
+        left_arrow.bind(on_press=lambda *_a: self._scroll_by(-theme.SCROLL_STEP))
+        right_arrow = _ScrollArrowButton(os.path.join(theme.ICON_DIR, "right.png"))
+        right_arrow.bind(on_press=lambda *_a: self._scroll_by(theme.SCROLL_STEP))
+        self._scroll_row.add_widget(left_arrow)
+        self._scroll_row.add_widget(self._scroll)
+        self._scroll_row.add_widget(right_arrow)
+
+    def _scroll_by(self, delta):
+        self._scroll.scroll_x = max(0.0, min(1.0, self._scroll.scroll_x + delta))
 
     def show_category(self, category):
         state = App.get_running_app().state
@@ -340,7 +421,7 @@ class CategoryPickerPanel(BoxLayout):
                 on_press=lambda *_args, p=path: App.get_running_app().state.select_category_option(category, p)
             )
             self._row.add_widget(thumb)
-        self.add_widget(self._scroll)
+        self.add_widget(self._scroll_row)
 
 
 # ---------------------------------------------------------------------------
@@ -364,13 +445,19 @@ class BottomBar(BoxLayout):
 
         app = App.get_running_app()
 
-        self.undo_button = _make_button("undo_button", app.state.undo)
+        self.undo_button = _IconButton(
+            os.path.join(theme.ICON_DIR, "back.png"), "undo_button", app.state.undo
+        )
         self.add_widget(self.undo_button)
 
-        self.new_session_button = _make_button("new_session_button", app.state.new_session)
+        self.new_session_button = _IconButton(
+            os.path.join(theme.ICON_DIR, "new.png"), "new_session_button", app.state.new_session
+        )
         self.add_widget(self.new_session_button)
 
-        self.send_button = _make_button("export_button", app.state.open_send_bar)
+        self.send_button = _IconButton(
+            os.path.join(theme.ICON_DIR, "send.png"), "export_button", app.state.open_send_bar
+        )
         self.add_widget(self.send_button)
 
         app.state.bind(undo_available=self._refresh_undo_button)
