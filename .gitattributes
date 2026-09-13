@@ -1,0 +1,4 @@
+# Shell scripts run on the Raspberry Pi (Linux) -- force LF endings
+# regardless of the checking-out machine's core.autocrlf setting. A
+# CRLF shebang line breaks these with "bad interpreter" on the Pi.
+deploy/*.sh text eol=lf

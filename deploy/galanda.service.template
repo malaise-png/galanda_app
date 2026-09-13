@@ -1,0 +1,40 @@
+# galanda.service.template
+#
+# Template for the systemd unit that autostarts the kiosk app on boot.
+# deploy/install.sh fills in __REPO_DIR__ / __USER__ / __HOME__ and installs
+# the result as /etc/systemd/system/galanda.service -- don't edit that copy
+# directly, edit this template and re-run install.sh instead, so the two
+# don't drift apart.
+#
+# GALANDA_KIOSK=1 is what forces theme.DEV_MODE to False on the Pi (see
+# theme.py) -- true fullscreen/borderless, no dev multitouch simulator.
+
+[Unit]
+Description=Galanda kiosk app
+# Waits for the graphical desktop session (X11/Wayland) to be up, since
+# Kivy needs a real display to open a window on. Requires the Pi to be set
+# to auto-login to the desktop (raspi-config -> System Options -> Boot /
+# Auto Login -> Desktop Autologin) -- see deploy/README.md.
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=__USER__
+Environment=GALANDA_KIOSK=1
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=__HOME__/.Xauthority
+WorkingDirectory=__REPO_DIR__
+# graphical.target can be reported "reached" a moment before the desktop's
+# X/Wayland session is actually ready to accept windows -- this short
+# delay avoids a race where the app tries to open a window too early and
+# fails. If you still see startup failures on a slow Pi, increase it.
+ExecStartPre=/bin/sleep 5
+ExecStart=__REPO_DIR__/venv/bin/python __REPO_DIR__/main.py
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

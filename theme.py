@@ -27,8 +27,14 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 #          mouse multitouch simulator is turned off (not needed on a real
 #          touchscreen, and we don't want a stray Ctrl-click to add a fake
 #          second touch point on the real kiosk).
-# Set this to False before deploying to the Raspberry Pi touchscreen.
-DEV_MODE = True
+#
+# Driven by the GALANDA_KIOSK env var rather than a hardcoded flag: the
+# Pi's systemd service (see deploy/galanda.service.template) always sets
+# GALANDA_KIOSK=1, so the kiosk forces itself into deployment mode no
+# matter what this file says in git -- there's nothing to remember to
+# flip back and forth between committing from Windows and running on the
+# Pi. Leave GALANDA_KIOSK unset for normal dev/laptop runs.
+DEV_MODE = os.environ.get("GALANDA_KIOSK") != "1"
 
 # When DEV_MODE is True: shrink the dev window so it actually fits on a
 # laptop screen, instead of forcing a literal 1080x1920 window (taller
