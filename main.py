@@ -124,7 +124,7 @@ class GalandaApp(App):
         content.bind(pos=self._update_background_rect, size=self._update_background_rect)
 
         # -- canvas, centered in the space between the bars ---------------------
-        canvas_area = CanvasArea(pos_hint={"center_x": 0.5, "center_y": 0.5})
+        canvas_area = CanvasArea(ASSETS_DIR, pos_hint={"center_x": 0.5, "center_y": 0.5})
         self.state.canvas_area = canvas_area
 
         canvas_holder = FloatLayout(size_hint=(1, 1))

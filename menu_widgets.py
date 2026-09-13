@@ -77,6 +77,21 @@ def _add_underline(widget, color):
     return _set_visible
 
 
+def _add_space_between(container, widgets):
+    """Add `widgets` to `container` (a horizontal BoxLayout) with a flexible
+    spacer between each pair -- nothing before the first or after the last.
+    Combined with a widget's own width hugging its content (rather than
+    filling an equal-width slot), this is what makes the first widget's
+    content sit flush against the container's left padding and the last
+    widget's flush against its right padding, with the row's `padding`
+    setting that shared margin -- while whatever's left over is split evenly
+    into the gaps between them."""
+    for index, widget in enumerate(widgets):
+        if index > 0:
+            container.add_widget(Widget(size_hint_x=1))
+        container.add_widget(widget)
+
+
 def _make_button(text_key, on_press, color=None):
     """A themed, borderless (no background frame) Button -- just its label
     floating on whatever it's placed on -- whose text is registered for
@@ -96,10 +111,11 @@ def _make_button(text_key, on_press, color=None):
 
 class _IconButton(ButtonBehavior, AnchorLayout):
     """A themed, borderless button like _make_button(), but with an icon to
-    the left of its label. The icon+label pair is centered as a group
-    within the button's full bounds (which stays the tap target), rather
-    than pinned to one side, so it looks the same as a plain _make_button
-    label just with an icon added.
+    the left of its label. Sized to hug the icon+label group exactly
+    (size_hint_x=None, width tracks that group's own minimum_width) rather
+    than filling whatever slot a parent layout hands it, so a row of these
+    can be edge-aligned (see BottomBar) instead of each button's content
+    floating centered in its own equal-width share of the row.
 
     Dims (via opacity) while disabled, since a custom composite like this
     doesn't get Button's automatic disabled-dimming for free."""
@@ -107,12 +123,14 @@ class _IconButton(ButtonBehavior, AnchorLayout):
     def __init__(self, icon_path, text_key, on_press, **kwargs):
         kwargs.setdefault("anchor_x", "center")
         kwargs.setdefault("anchor_y", "center")
+        kwargs.setdefault("size_hint", (None, 1))
         super().__init__(**kwargs)
         self.bind(on_press=lambda *_args: on_press())
         self.bind(disabled=self._refresh_disabled_look)
 
         content = BoxLayout(orientation="horizontal", spacing=8, size_hint=(None, None))
         content.bind(minimum_width=content.setter("width"), minimum_height=content.setter("height"))
+        content.bind(width=lambda _inst, value: setattr(self, "width", value))
 
         icon = Image(
             source=icon_path,
@@ -134,6 +152,7 @@ class _IconButton(ButtonBehavior, AnchorLayout):
         content.add_widget(self.label)
 
         self.add_widget(content)
+        self.width = content.width
 
     def _refresh_disabled_look(self, _instance, disabled):
         self.opacity = 0.4 if disabled else 1.0
@@ -157,21 +176,30 @@ class TopBar(BoxLayout):
         kwargs.setdefault("orientation", "horizontal")
         kwargs.setdefault("size_hint", (1, None))
         kwargs.setdefault("height", theme.TOP_BAR_HEIGHT)
-        kwargs.setdefault("padding", 8)
+        kwargs.setdefault("padding", [theme.SIDE_MARGIN, 8, theme.SIDE_MARGIN, 8])
         kwargs.setdefault("spacing", 8)
         super().__init__(**kwargs)
         _add_flat_background(self, theme.PANEL_BACKGROUND_COLOR)
 
         state = App.get_running_app().state
 
+        # Sized to hug its own text (rather than a fixed box wider than the
+        # word) so "Info" actually sits flush against the bar's left
+        # padding -- theme.SIDE_MARGIN from the screen edge -- the same
+        # margin used everywhere else, instead of floating in the middle of
+        # an oversized button.
         self.tutorial_button = _make_button("tutorial_button", state.toggle_tutorial)
         self.tutorial_button.size_hint_x = None
-        self.tutorial_button.width = 160
+        self.tutorial_button.bind(texture_size=lambda inst, val: setattr(inst, "width", val[0]))
         self.add_widget(self.tutorial_button)
 
         self.add_widget(Widget())  # spacer: pushes the language switch to the right
 
-        lang_row = BoxLayout(orientation="horizontal", size_hint=(None, 1), width=150, spacing=6)
+        # Same idea on the right: the row hugs its own content (via
+        # minimum_width) instead of a fixed width, so "EN" ends up flush
+        # against the bar's right padding -- the same theme.SIDE_MARGIN.
+        lang_row = BoxLayout(orientation="horizontal", size_hint=(None, 1), spacing=6)
+        lang_row.bind(minimum_width=lang_row.setter("width"))
 
         self._sk_button = self._make_lang_button("SK")
         self._sk_button.bind(on_press=lambda *_a: self._set_language("sk"))
@@ -201,18 +229,22 @@ class TopBar(BoxLayout):
     @staticmethod
     def _make_lang_button(text):
         # Not built with _make_button()/register_i18n() -- "SK"/"EN" are
-        # language codes, not translated UI text.
-        return Button(
+        # language codes, not translated UI text. Width hugs the text
+        # itself (via texture_size) rather than a fixed guess, so the
+        # lang_row's own minimum_width -- and so the right margin it lines
+        # up against -- reflects the actual rendered text.
+        button = Button(
             text=text,
             font_size=theme.FONT_SIZE_NORMAL,
             **theme.font_kwargs(),
             size_hint=(None, 1),
-            width=60,
             background_normal="",
             background_down="",
             background_color=(0, 0, 0, 0),
             color=theme.TEXT_COLOR,
         )
+        button.bind(texture_size=lambda inst, val: setattr(inst, "width", val[0]))
+        return button
 
     def _set_language(self, language):
         App.get_running_app().state.current_language = language
@@ -296,23 +328,32 @@ class TutorialPanel(BoxLayout):
 class CategoryBar(BoxLayout):
     """Row of 5 buttons, one per category. Tapping one opens (or, if it's
     already open, closes) that category's picker panel -- see
-    AppState.toggle_category / open_category, and CategoryPickerPanel."""
+    AppState.toggle_category / open_category, and CategoryPickerPanel.
+
+    Each button hugs its own text width and they're spread across the row
+    with _add_space_between, so POZADIE sits flush against the left margin
+    and PREDMET flush against the right one, matching the top/bottom bars,
+    with the other three evenly spaced between."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("orientation", "horizontal")
         kwargs.setdefault("size_hint", (1, None))
         kwargs.setdefault("height", theme.CATEGORY_BAR_HEIGHT)
-        kwargs.setdefault("padding", 8)
-        kwargs.setdefault("spacing", 6)
+        kwargs.setdefault("padding", [theme.SIDE_MARGIN, 8, theme.SIDE_MARGIN, 8])
+        kwargs.setdefault("spacing", 0)
         super().__init__(**kwargs)
         _add_flat_background(self, theme.PANEL_BACKGROUND_COLOR)
 
         state = App.get_running_app().state
         self._underlines = {}
+        buttons = []
         for category in theme.CATEGORIES:
             button = _make_button(f"category_{category}", lambda c=category: state.toggle_category(c))
+            button.size_hint_x = None
+            button.bind(texture_size=lambda inst, val: setattr(inst, "width", val[0]))
             self._underlines[category] = _add_underline(button, theme.TEXT_COLOR)
-            self.add_widget(button)
+            buttons.append(button)
+        _add_space_between(self, buttons)
 
         state.bind(open_category=self._refresh_highlight)
         self._refresh_highlight()
@@ -432,14 +473,19 @@ class CategoryPickerPanel(BoxLayout):
 class BottomBar(BoxLayout):
     """Bottom strip, left to right: Späť (undo last selection), Nová
     kompozícia (clear everything and start over), Poslať (opens
-    EmailSendBar)."""
+    EmailSendBar).
+
+    Each button hugs its own icon+label width and they're spread across the
+    row with _add_space_between, so Späť sits flush against the left margin
+    and Poslať flush against the right one, matching the top/category bars,
+    with Nová kompozícia evenly spaced between."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("orientation", "horizontal")
         kwargs.setdefault("size_hint", (1, None))
         kwargs.setdefault("height", theme.BOTTOM_BAR_HEIGHT)
-        kwargs.setdefault("padding", 8)
-        kwargs.setdefault("spacing", 8)
+        kwargs.setdefault("padding", [theme.SIDE_MARGIN, 8, theme.SIDE_MARGIN, 8])
+        kwargs.setdefault("spacing", 0)
         super().__init__(**kwargs)
         _add_flat_background(self, theme.PANEL_BACKGROUND_COLOR)
 
@@ -448,17 +494,16 @@ class BottomBar(BoxLayout):
         self.undo_button = _IconButton(
             os.path.join(theme.ICON_DIR, "back.png"), "undo_button", app.state.undo
         )
-        self.add_widget(self.undo_button)
 
         self.new_session_button = _IconButton(
             os.path.join(theme.ICON_DIR, "new.png"), "new_session_button", app.state.new_session
         )
-        self.add_widget(self.new_session_button)
 
         self.send_button = _IconButton(
             os.path.join(theme.ICON_DIR, "send.png"), "export_button", app.state.open_send_bar
         )
-        self.add_widget(self.send_button)
+
+        _add_space_between(self, [self.undo_button, self.new_session_button, self.send_button])
 
         app.state.bind(undo_available=self._refresh_undo_button)
         self._refresh_undo_button()

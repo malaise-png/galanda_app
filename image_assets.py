@@ -34,6 +34,21 @@ def get_category_assets(assets_dir, category):
     return assets
 
 
+def get_canvas_texture(assets_dir):
+    """Return the path to the single canvas-texture image (a PNG) in
+    assets/canvas/, used as CanvasArea's own paper-like background -- or
+    None if it hasn't been added yet, in which case CanvasArea is simply
+    blank. Same one-file-in-a-folder convention as get_start_image() below."""
+    canvas_dir = os.path.join(assets_dir, "canvas")
+    if not os.path.isdir(canvas_dir):
+        return None
+
+    for filename in sorted(os.listdir(canvas_dir)):
+        if filename.lower().endswith(_IMAGE_EXTENSIONS):
+            return os.path.join(canvas_dir, filename)
+    return None
+
+
 def get_start_image(assets_dir):
     """Return the path to the single start/end-screen image (an animated
     GIF or a PNG) in assets/start/, or None if it hasn't been added yet."""

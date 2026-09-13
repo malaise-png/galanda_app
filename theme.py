@@ -78,6 +78,12 @@ CATEGORY_THUMBNAIL_SIZE = (200, 200)
 # Height of the floating email-entry bar shown when POSLAŤ is tapped.
 EMAIL_BAR_HEIGHT = 460
 
+# The one consistent horizontal inset used by the top bar, category bar and
+# bottom bar, so their content (the Info button and SK/EN switch in the top
+# bar especially) all lines up against the same left/right margin instead of
+# each bar picking its own.
+SIDE_MARGIN = 20
+
 # Gap left on each side between the dropdown and the screen edge, so it
 # doesn't span edge-to-edge.
 DROPDOWN_SIDE_MARGIN = 24
@@ -95,19 +101,32 @@ UNDERLINE_WIDTH = 2
 CATEGORIES = ["pozadie", "telo", "ruky", "hlava", "predmet"]
 
 # Categories where tapping an option ADDS a new instance to the canvas
-# instead of replacing what's already there (up to MAX_INSTANCES_PER_CATEGORY
-# each -- further taps are ignored once a category is at its cap). POZADIE
-# (a whole-canvas background image) and TELO (one body) always stay
-# single-slot: picking a new option there replaces the previous one -- see
-# AppState.select_category_option.
-MULTI_INSTANCE_CATEGORIES = {"ruky", "hlava", "predmet"}
-MAX_INSTANCES_PER_CATEGORY = 4
+# instead of replacing what's already there (up to that category's own cap
+# in MAX_INSTANCES_PER_CATEGORY below -- further taps are ignored once a
+# category is at its cap). POZADIE (a whole-canvas background image) is the
+# only category that stays single-slot, handled separately in
+# AppState._select_background -- see AppState.select_category_option.
+MULTI_INSTANCE_CATEGORIES = {"telo", "ruky", "hlava", "predmet"}
+MAX_INSTANCES_PER_CATEGORY = {
+    "telo": 2,
+    "ruky": 4,
+    "hlava": 2,
+    "predmet": 4,
+}
 
 # The canvas is a fixed-size rectangle in the middle of the screen -- it is
 # NOT the whole remaining space, it's deliberately smaller so there's a
 # visible black margin around it. Change these two numbers to resize it.
 CANVAS_WIDTH = 960
 CANVAS_HEIGHT = 1350
+
+# CanvasArea's own base look: a PNG dropped into assets/canvas/ (see
+# image_assets.get_canvas_texture) is stretched to fill the whole canvas --
+# there's no flat-color fallback, it's simply blank until that PNG is
+# added. Whatever POZADIE image the user then picks is placed on top of
+# that, inset by this many pixels on every side -- smaller than the canvas
+# itself -- so the paper-like texture stays visible as a border around it.
+POZADIE_INSET = 60
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -119,9 +138,6 @@ PANEL_BORDER_COLOR = (43/255, 40/255, 41/255, 1)      # thin separator lines
 
 TEXT_COLOR = (1, 1, 1, 1)                       # default text: white
 ACCENT_COLOR = (1, 1, 1, 1)            # buttons / highlights: warm gold
-
-# The canvas's own background color, shown until a POZADIE image is picked.
-DEFAULT_CANVAS_COLOR = (43/255, 40/255, 41/255, 1)             # canvas starts off white, like paper
 
 # Dashed outline drawn around the currently-selected image.
 SELECTION_HIGHLIGHT_COLOR = ACCENT_COLOR
@@ -177,7 +193,13 @@ IMAGE_SCALE_MAX = 3.0
 # the image's own Scatter, so it rotates/scales along with the image's
 # frame rather than staying screen-space fixed.
 DELETE_BUTTON_SIZE = (44, 44)
-DELETE_BUTTON_COLOR = (0.8, 0.15, 0.15, 1)
+DELETE_BUTTON_COLOR = (0, 0, 0, 1)
+
+# How far the delete badge's tappable area extends beyond its visible
+# circle on every side, in pixels -- a touch anywhere within DELETE_BUTTON_SIZE
+# plus this padding registers, not just a precise tap on the small circle
+# itself.
+DELETE_BUTTON_TOUCH_PADDING = 24
 
 # ---------------------------------------------------------------------------
 # Icons

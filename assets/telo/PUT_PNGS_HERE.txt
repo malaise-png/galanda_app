@@ -1,7 +1,0 @@
-Drop the TELO (body) PNG images in this folder.
-
-Each .png file here becomes one option in the TELO picker, shown in
-alphabetical order by filename. Picking one places/replaces the single body
-image on the canvas -- the user can then drag, rotate, and pinch-resize it.
-
-Delete this text file once you've added real artwork.

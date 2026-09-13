@@ -21,6 +21,7 @@ from kivy.uix.label import Label
 from kivy.uix.scatter import Scatter
 from kivy.uix.widget import Widget
 
+import image_assets
 import theme
 
 
@@ -48,19 +49,43 @@ class _DeleteBadge(ButtonBehavior, Label):
         self._badge.pos = self.pos
         self._badge.size = self.size
 
+    def collide_point(self, x, y):
+        # ButtonBehavior's default hit test is the widget's own tight
+        # (self.size) box -- just the visible circle. Padding it out makes
+        # the tap target meaningfully bigger than the small badge itself,
+        # without changing how big the badge looks.
+        pad = theme.DELETE_BUTTON_TOUCH_PADDING
+        return (
+            self.x - pad <= x <= self.right + pad
+            and self.y - pad <= y <= self.top + pad
+        )
+
     def on_press(self):
         App.get_running_app().state.delete_selected()
 
 
+def _clamp_axis(pos, size, canvas_pos, canvas_size):
+    """Clamp a bounding box's position along one axis so it stays fully
+    inside [canvas_pos, canvas_pos + canvas_size]. If the box is bigger than
+    the canvas on this axis (possible once scaled up, or once rotated makes
+    the axis-aligned bounding box bigger than the image itself), there's no
+    position that satisfies that, so it's centered on the canvas instead --
+    better than letting it be dragged arbitrarily far off to one side."""
+    max_pos = canvas_pos + canvas_size - size
+    if max_pos < canvas_pos:
+        return canvas_pos + (canvas_size - size) / 2
+    return min(max(pos, canvas_pos), max_pos)
+
+
 class DraggableImage(Scatter):
-    """One PNG image instance placed on the canvas (TELO/RUKY/HLAVA slot,
-    or one of possibly several PREDMET items)."""
+    """One PNG image instance placed on the canvas (POZADIE/TELO/RUKY/HLAVA/
+    PREDMET slot)."""
 
     # True while this is the image currently touched/selected -- shows a
     # highlight rectangle around it.
     selected = BooleanProperty(False)
 
-    def __init__(self, image_path, **kwargs):
+    def __init__(self, image_path, bring_to_front=True, **kwargs):
         texture = CoreImage(image_path).texture
 
         # Fit the image inside theme.IMAGE_INITIAL_SIZE while keeping its
@@ -83,10 +108,11 @@ class DraggableImage(Scatter):
             scale_min=theme.IMAGE_SCALE_MIN,
             scale_max=theme.IMAGE_SCALE_MAX,
             # Unlike the app's old vector shapes, touching an image DOES
-            # bring it to the front. There are no dedicated front/back
-            # buttons any more -- touch is how overlapping body parts get
-            # rearranged.
-            auto_bring_to_front=True,
+            # bring it to the front -- except a body (TELO), which must
+            # always stay directly above the background and below every
+            # other placed image; AppState creates those with
+            # bring_to_front=False so touching one never reorders it.
+            auto_bring_to_front=bring_to_front,
             **kwargs
         )
 
@@ -129,40 +155,81 @@ class DraggableImage(Scatter):
             App.get_running_app().state.select_target(self)
         return handled
 
+    def on_transform_with_touch(self, touch):
+        # Called after Scatter has applied a touch-driven drag/rotate/pinch
+        # to this image -- clamp it back so it can never be moved (or
+        # resized) out of the canvas's own bounds. self.bbox is the image's
+        # axis-aligned bounding box in its parent's (the canvas's)
+        # coordinates, already accounting for the current rotation/scale.
+        super().on_transform_with_touch(touch)
+        canvas_area = self.parent
+        if canvas_area is None:
+            return
+        (box_x, box_y), (box_width, box_height) = self.bbox
+        new_x = _clamp_axis(box_x, box_width, canvas_area.x, canvas_area.width)
+        new_y = _clamp_axis(box_y, box_height, canvas_area.y, canvas_area.height)
+        if new_x != box_x:
+            self.x = new_x
+        if new_y != box_y:
+            self.y = new_y
+
 
 class CanvasArea(Widget):
-    """The fixed-size canvas surface in the middle of the screen. Its
-    background is a flat color (theme.DEFAULT_CANVAS_COLOR) until a POZADIE
-    image is picked, at which point set_background_image() stretches that
-    image to fill the canvas. DraggableImage instances are added to it as
-    normal child widgets by AppState."""
+    """The fixed-size canvas surface in the middle of the screen. Its own
+    base look is just the PNG dropped into assets/canvas/ (see
+    image_assets.get_canvas_texture), stretched to fill the whole canvas --
+    there's no flat-color fallback, so it's simply blank until that PNG is
+    added. Once a POZADIE image is picked, set_background_image() places it
+    on top of that, inset by theme.POZADIE_INSET on every side so the
+    canvas texture stays visible as a border around it. DraggableImage
+    instances are added to it as normal child widgets by AppState."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, assets_dir, **kwargs):
         kwargs.setdefault("size_hint", (None, None))
         kwargs.setdefault("size", (theme.CANVAS_WIDTH, theme.CANVAS_HEIGHT))
         super().__init__(**kwargs)
 
+        canvas_texture_path = image_assets.get_canvas_texture(assets_dir)
+        canvas_texture = None if canvas_texture_path is None else CoreImage(canvas_texture_path).texture
+
         with self.canvas.before:
-            Color(rgba=theme.DEFAULT_CANVAS_COLOR)
-            self._background_rect = Rectangle(pos=self.pos, size=self.size)
-            # Drawn on top of the flat color rect above; has no texture
-            # (and so is invisible, just showing the color through) until
-            # set_background_image() gives it one.
-            Color(1, 1, 1, 1)
-            self._background_image_rect = Rectangle(pos=self.pos, size=self.size)
+            # A Rectangle with no texture still paints an opaque flat fill
+            # in whatever Color came before it -- so rather than that
+            # showing through as a solid white square, this Color's alpha
+            # stays 0 (fully transparent) until there actually is a
+            # texture, making "no PNG yet" look like nothing drawn at all.
+            self._canvas_texture_color = Color(rgba=(1, 1, 1, 1 if canvas_texture else 0))
+            self._canvas_texture_rect = Rectangle(texture=canvas_texture, pos=self.pos, size=self.size)
+
+            # The user-picked POZADIE image, inset smaller than the canvas
+            # itself (see _update_background_rect) so the texture above
+            # stays visible as a border around it. Same alpha trick: stays
+            # transparent (rather than an opaque white patch) until
+            # set_background_image() actually gives it a texture.
+            self._background_image_color = Color(rgba=(1, 1, 1, 0))
+            self._background_image_rect = Rectangle()
 
         self.bind(pos=self._update_background_rect, size=self._update_background_rect)
+        self._update_background_rect()
 
     def _update_background_rect(self, *args):
-        self._background_rect.pos = self.pos
-        self._background_rect.size = self.size
-        self._background_image_rect.pos = self.pos
-        self._background_image_rect.size = self.size
+        self._canvas_texture_rect.pos = self.pos
+        self._canvas_texture_rect.size = self.size
+
+        inset = theme.POZADIE_INSET
+        self._background_image_rect.pos = (self.x + inset, self.y + inset)
+        self._background_image_rect.size = (self.width - 2 * inset, self.height - 2 * inset)
 
     def set_background_image(self, image_path):
-        """Set (or, with None, clear back to the flat DEFAULT_CANVAS_COLOR)
-        the POZADIE image stretched to fill the whole canvas."""
-        self._background_image_rect.texture = None if image_path is None else CoreImage(image_path).texture
+        """Set (or, with None, clear back to just the canvas texture
+        showing through) the POZADIE image, inset by theme.POZADIE_INSET to
+        fill everything but a border around the canvas."""
+        if image_path is None:
+            self._background_image_rect.texture = None
+            self._background_image_color.a = 0
+        else:
+            self._background_image_rect.texture = CoreImage(image_path).texture
+            self._background_image_color.a = 1
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):

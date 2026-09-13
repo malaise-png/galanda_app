@@ -13,7 +13,7 @@
 # AppState, not how the whole app works.
 
 from kivy.event import EventDispatcher
-from kivy.properties import BooleanProperty, ListProperty, ObjectProperty, OptionProperty, StringProperty
+from kivy.properties import BooleanProperty, ObjectProperty, OptionProperty, StringProperty
 
 import theme
 
@@ -41,8 +41,6 @@ class AppState(EventDispatcher):
     # Which category's picker panel is currently open ("" = none open).
     open_category = StringProperty("")
 
-    canvas_color = ListProperty(list(theme.DEFAULT_CANVAS_COLOR))
-
     # Either the string "canvas", or a DraggableImage widget instance.
     selected_target = ObjectProperty("canvas")
 
@@ -60,16 +58,14 @@ class AppState(EventDispatcher):
         # it. Not a Kivy property -- nothing needs to react to its
         # contents, only to whether it's empty (see undo_available).
         self._undo_stack = []
-        # category -> currently-placed DraggableImage, for the single-slot
-        # categories (pozadie is handled separately below since it's a
-        # whole-canvas background image, not a DraggableImage; telo is the
-        # only single-slot DraggableImage category).
-        self._slot_widgets = {}
+        # pozadie is handled separately below since it's a whole-canvas
+        # background image, not a DraggableImage at all.
         self._background_asset = None
         # category -> list of DraggableImage, for theme.MULTI_INSTANCE_CATEGORIES
-        # (ruky/hlava/predmet) -- picking an option in these ADDS a new
-        # instance (up to theme.MAX_INSTANCES_PER_CATEGORY) instead of
-        # replacing what's there.
+        # (telo/ruky/hlava/predmet) -- picking an option in these ADDS a new
+        # instance (up to that category's own cap in
+        # theme.MAX_INSTANCES_PER_CATEGORY) instead of replacing what's
+        # there.
         self._multi_instances = {category: [] for category in theme.MULTI_INSTANCE_CATEGORIES}
 
     # -- selection -----------------------------------------------------------
@@ -123,17 +119,15 @@ class AppState(EventDispatcher):
 
     def select_category_option(self, category, asset_path):
         """Called when the user taps a thumbnail inside an open category
-        picker. Categories in theme.MULTI_INSTANCE_CATEGORIES (ruky/hlava/
-        predmet) add a new instance every time, up to
-        theme.MAX_INSTANCES_PER_CATEGORY; every other category (pozadie,
-        telo) has a single slot and picking a new option swaps it out for
-        the previous one."""
+        picker. POZADIE always has a single slot (a whole-canvas background
+        image) and picking a new one swaps out the previous one. Every
+        other category is in theme.MULTI_INSTANCE_CATEGORIES (telo/ruky/
+        hlava/predmet) and adds a new instance every time, up to that
+        category's own cap in theme.MAX_INSTANCES_PER_CATEGORY."""
         if category == "pozadie":
             self._select_background(asset_path)
-        elif category in theme.MULTI_INSTANCE_CATEGORIES:
-            self._add_multi_instance(category, asset_path)
         else:
-            self._select_slot(category, asset_path)
+            self._add_multi_instance(category, asset_path)
         self.close_category_picker()
 
     # -- undo --------------------------------------------------------------
@@ -163,42 +157,35 @@ class AppState(EventDispatcher):
 
         self._push_undo(_undo)
 
-    def _select_slot(self, category, asset_path):
-        from canvas_widgets import DraggableImage
-
-        previous_widget = self._slot_widgets.get(category)
-
-        new_widget = DraggableImage(asset_path)
-        new_widget.center = self.canvas_area.center
-        self.canvas_area.add_widget(new_widget)
-        if previous_widget is not None:
-            self.canvas_area.remove_widget(previous_widget)
-        self._slot_widgets[category] = new_widget
-        self.select_target(new_widget)
-
-        def _undo():
-            self.canvas_area.remove_widget(new_widget)
-            if previous_widget is not None:
-                self.canvas_area.add_widget(previous_widget)
-            self._slot_widgets[category] = previous_widget
-            self.select_target(previous_widget if previous_widget is not None else "canvas")
-
-        self._push_undo(_undo)
+    def _place_on_canvas(self, category, widget):
+        """Add a DraggableImage to the canvas, respecting the stacking
+        rule: a body (TELO) always sits directly above the background and
+        below every other placed image, and never gets reordered by touch
+        (see DraggableImage's bring_to_front=False for telo below). Adding
+        it with index=len(children) puts its canvas at the very back of the
+        DraggableImage stack -- still in front of the background itself,
+        which is drawn separately as CanvasArea's own canvas.before. Every
+        other category keeps the old behaviour: added on top, and free to
+        be brought further forward by touch (auto_bring_to_front)."""
+        if category == "telo":
+            self.canvas_area.add_widget(widget, index=len(self.canvas_area.children))
+        else:
+            self.canvas_area.add_widget(widget)
 
     def _add_multi_instance(self, category, asset_path):
         from canvas_widgets import DraggableImage
 
         instances = self._multi_instances[category]
-        if len(instances) >= theme.MAX_INSTANCES_PER_CATEGORY:
+        if len(instances) >= theme.MAX_INSTANCES_PER_CATEGORY[category]:
             # Already at the cap for this category -- ignore the tap
             # rather than silently replacing or deleting something the
             # user already placed. The X badge on a selected image is how
             # they free up a slot (see delete_selected()).
             return
 
-        new_widget = DraggableImage(asset_path)
+        new_widget = DraggableImage(asset_path, bring_to_front=category != "telo")
         new_widget.center = self.canvas_area.center
-        self.canvas_area.add_widget(new_widget)
+        self._place_on_canvas(category, new_widget)
         instances.append(new_widget)
         self.select_target(new_widget)
 
@@ -213,9 +200,9 @@ class AppState(EventDispatcher):
 
     def delete_selected(self):
         """Called from the X badge on a selected DraggableImage. Removes
-        it from the canvas and whichever bookkeeping (a single slot, or a
-        multi-instance category's list) it belongs to. Does nothing if
-        "canvas" itself is selected -- there's nothing to delete."""
+        it from the canvas and whichever multi-instance category's list it
+        belongs to. Does nothing if "canvas" itself is selected -- there's
+        nothing to delete."""
         target = self.selected_target
         if target == "canvas":
             return
@@ -225,11 +212,6 @@ class AppState(EventDispatcher):
                 self._delete_multi_instance(category, target)
                 return
 
-        for category, widget in self._slot_widgets.items():
-            if widget is target:
-                self._delete_slot(category, target)
-                return
-
     def _delete_multi_instance(self, category, widget):
         instances = self._multi_instances[category]
         self.canvas_area.remove_widget(widget)
@@ -237,20 +219,8 @@ class AppState(EventDispatcher):
         self.select_target("canvas")
 
         def _undo():
-            self.canvas_area.add_widget(widget)
+            self._place_on_canvas(category, widget)
             instances.append(widget)
-            self.select_target(widget)
-
-        self._push_undo(_undo)
-
-    def _delete_slot(self, category, widget):
-        self.canvas_area.remove_widget(widget)
-        self._slot_widgets[category] = None
-        self.select_target("canvas")
-
-        def _undo():
-            self.canvas_area.add_widget(widget)
-            self._slot_widgets[category] = widget
             self.select_target(widget)
 
         self._push_undo(_undo)
@@ -261,11 +231,6 @@ class AppState(EventDispatcher):
         """Clears the canvas back to its starting state: no background
         image, no body parts, no items, canvas selected, undo history
         cleared, email bar closed."""
-        for widget in list(self._slot_widgets.values()):
-            if widget is not None:
-                self.canvas_area.remove_widget(widget)
-        self._slot_widgets = {}
-
         for instances in self._multi_instances.values():
             for widget in list(instances):
                 self.canvas_area.remove_widget(widget)
@@ -273,7 +238,6 @@ class AppState(EventDispatcher):
 
         self.canvas_area.set_background_image(None)
         self._background_asset = None
-        self.canvas_color = list(theme.DEFAULT_CANVAS_COLOR)
 
         self._undo_stack = []
         self.undo_available = False

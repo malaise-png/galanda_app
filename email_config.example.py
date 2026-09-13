@@ -16,10 +16,10 @@
 # Verification -> App Passwords) -- your normal Gmail password will NOT
 # work here. Other providers: use their SMTP-over-SSL host/port instead.
 
-SMTP_HOST = None
+SMTP_HOST = "smtp-relay.brevo.com"
 SMTP_PORT = 465
-SMTP_USERNAME = None
-SMTP_PASSWORD = None
+SMTP_USERNAME = "your-login@smtp-brevo.com"
+SMTP_PASSWORD = "your-smtp-api-key-here"
 
 # Shown as the "From" address. Leave as None to just use SMTP_USERNAME.
 FROM_ADDRESS = None
