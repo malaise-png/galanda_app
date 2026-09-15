@@ -530,15 +530,75 @@ class BottomBar(BoxLayout):
 
 
 # ---------------------------------------------------------------------------
+# On-screen keyboard for the email field
+# ---------------------------------------------------------------------------
+
+# Only what an email address needs -- lowercase letters, digits, and the
+# handful of symbols that show up in one (@ . - _). No shift/caps: emails
+# aren't case-sensitive in practice and this keeps the layout simple.
+_KEYBOARD_ROWS = ("1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm@.-_")
+
+
+class _SimpleKeyboard(BoxLayout):
+    """A minimal on-screen keyboard built entirely out of this app's own
+    widgets, for the email TextInput below.
+
+    Kivy's built-in docked keyboard (Window.request_keyboard, see
+    keyboard_mode in main.py) turned out not to render at all on this
+    kiosk's Wayland/labwc + portrait setup -- the request succeeds at the
+    API level (a real Keyboard object comes back) but nothing ever
+    appears on screen, and that's not something fixable from here without
+    being able to see the actual display. Building the keyboard as normal
+    app widgets instead means it goes through the same touch/rendering
+    path already proven to work on this hardware for everything else."""
+
+    def __init__(self, target, **kwargs):
+        kwargs.setdefault("orientation", "vertical")
+        kwargs.setdefault("spacing", 6)
+        super().__init__(**kwargs)
+        self._target = target
+
+        for row in _KEYBOARD_ROWS:
+            row_box = BoxLayout(orientation="horizontal", spacing=6)
+            for char in row:
+                row_box.add_widget(self._make_key(char, self._insert))
+            self.add_widget(row_box)
+
+        backspace_row = BoxLayout(orientation="horizontal", spacing=6)
+        backspace_row.add_widget(self._make_key("<-", self._backspace))
+        self.add_widget(backspace_row)
+
+    @staticmethod
+    def _make_key(label, on_press):
+        button = _PaddedButton(
+            text=label,
+            font_size=theme.FONT_SIZE_NORMAL,
+            **theme.font_kwargs(),
+            background_normal="",
+            background_down="",
+            background_color=theme.KEYBOARD_KEY_COLOR,
+            color=theme.TEXT_COLOR,
+        )
+        button.bind(on_press=lambda *_a: on_press(label))
+        return button
+
+    def _insert(self, char):
+        self._target.text += char
+
+    def _backspace(self, _label):
+        self._target.text = self._target.text[:-1]
+
+
+# ---------------------------------------------------------------------------
 # Email send bar: shown when POSLAŤ is tapped
 # ---------------------------------------------------------------------------
 
 
 class EmailSendBar(BoxLayout):
     """Floating bar shown when POSLAŤ is tapped: a label, an email
-    TextInput (Kivy's own on-screen keyboard docks under the window
-    automatically when focused, on the kiosk -- see keyboard_mode in
-    main.py), an inline error message, and Cancel/Poslať buttons.
+    TextInput, an on-screen keyboard (_SimpleKeyboard -- see its own
+    docstring for why this isn't Kivy's built-in one), an inline error
+    message, and Cancel/Poslať buttons.
 
     main.py adds/removes this from the root layout and calls show() to
     reset it, each time AppState.email_bar_open changes."""
@@ -568,6 +628,11 @@ class EmailSendBar(BoxLayout):
             size_hint_y=None,
             height=72,
             write_tab=False,
+            # This kiosk provides its own on-screen keyboard (see
+            # _SimpleKeyboard above) rather than Kivy's built-in one --
+            # "managed" stops focusing this field from also trying (and
+            # failing) to pop up Kivy's own docked keyboard.
+            keyboard_mode="managed",
         )
         self.add_widget(self._email_input)
 
@@ -580,7 +645,7 @@ class EmailSendBar(BoxLayout):
         )
         self.add_widget(self._error_label)
 
-        self.add_widget(Widget())  # spacer
+        self.add_widget(_SimpleKeyboard(self._email_input, size_hint_y=1))
 
         buttons_row = BoxLayout(orientation="horizontal", spacing=8, size_hint_y=None, height=70)
         buttons_row.add_widget(_make_button("email_bar_cancel", self._cancel))
@@ -592,15 +657,6 @@ class EmailSendBar(BoxLayout):
         state (rather than showing the last attempt's leftover text)."""
         self._email_input.text = ""
         self._error_label.text = ""
-        self._email_input.focus = True
-        # TEMPORARY debug -- see if the docked keyboard is actually being
-        # requested (and succeeding) when this bar opens.
-        print(
-            f"DEBUG KEYBOARD focus={self._email_input.focus} "
-            f"_keyboard={self._email_input._keyboard!r} "
-            f"root_window={self._email_input.get_root_window()!r}",
-            flush=True,
-        )
 
     def _cancel(self):
         App.get_running_app().state.close_send_bar()

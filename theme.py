@@ -109,7 +109,9 @@ CATEGORY_PICKER_HEIGHT = 260
 CATEGORY_THUMBNAIL_SIZE = (200, 200)
 
 # Height of the floating email-entry bar shown when POSLAŤ is tapped.
-EMAIL_BAR_HEIGHT = 460
+# Tall enough to fit its own on-screen keyboard (_SimpleKeyboard in
+# menu_widgets.py, 5 rows) below the text field.
+EMAIL_BAR_HEIGHT = 700
 
 # The one consistent horizontal inset used by the top bar, category bar and
 # bottom bar, so their content (the Info button and SK/EN switch in the top
@@ -175,6 +177,12 @@ ACCENT_COLOR = (1, 1, 1, 1)            # buttons / highlights: warm gold
 # Dashed outline drawn around the currently-selected image.
 SELECTION_HIGHLIGHT_COLOR = ACCENT_COLOR
 SELECTION_HIGHLIGHT_WIDTH = 2
+
+# Key background for the email bar's on-screen keyboard (_SimpleKeyboard
+# in menu_widgets.py) -- lighter than PANEL_BACKGROUND_COLOR so each key
+# actually reads as a tappable button against the bar's near-black
+# background, rather than disappearing into it.
+KEYBOARD_KEY_COLOR = (70/255, 70/255, 70/255, 1)
 
 # ---------------------------------------------------------------------------
 # Fonts

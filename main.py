@@ -68,11 +68,13 @@ else:
     # True fullscreen kiosk mode with no window border, for the Pi.
     Config.set("graphics", "fullscreen", "auto")
     Config.set("graphics", "borderless", "1")
-    # Force Kivy's own docked on-screen keyboard for the email entry field
-    # (EmailSendBar) -- the kiosk has a touchscreen and no physical
-    # keyboard attached. Left as the default ("") in DEV_MODE, so dev
-    # testing just uses the laptop's real keyboard instead.
-    Config.set("kivy", "keyboard_mode", "dock")
+    # NOTE: Kivy's docked on-screen keyboard (keyboard_mode="dock") was
+    # tried here for the email entry field but never actually rendered on
+    # this kiosk's Wayland/labwc + portrait setup, despite the keyboard
+    # request succeeding at the API level -- see _SimpleKeyboard in
+    # menu_widgets.py, which replaces it with a keyboard built from this
+    # app's own widgets instead. Not set here anymore; DEV_MODE never used
+    # it either (dev testing just uses the laptop's real keyboard).
     # See theme.TOUCH_JITTER_DISTANCE -- absorbs small raw-coordinate noise
     # from the touch panel so a held/slow touch doesn't register as a tiny
     # unintended drag.
