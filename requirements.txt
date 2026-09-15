@@ -3,4 +3,4 @@
 # On the Raspberry Pi, follow Kivy's official Raspberry Pi install guide
 # for `kivy[base]`.
 
-kivy[base]==2.3.0
+kivy[base]==2.3.1
