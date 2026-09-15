@@ -77,6 +77,20 @@ else:
     # from the touch panel so a held/slow touch doesn't register as a tiny
     # unintended drag.
     Config.set("postproc", "jitter_distance", str(theme.TOUCH_JITTER_DISTANCE))
+    # On Linux, Kivy's own kivy/config.py adds a SECOND, independent touch
+    # input path by default -- Config.setdefault("input", "%(name)s",
+    # "probesysfs...") -- which reads the touch device directly from
+    # /dev/input, completely separate from (and in addition to) SDL2's own
+    # window input. That means every physical touch was being reported
+    # TWICE: once correctly via SDL2 (through the Wayland/libinput
+    # pipeline the udev calibration matrix in deploy/README.md corrects),
+    # and once raw via this second path with no rotation/calibration
+    # applied at all -- Scatter then saw two touches for every one finger,
+    # which is what was making one-finger drags constantly misread as a
+    # two-finger rotate/resize gesture, and taps land inconsistently
+    # depending on which of the two duplicate events won. Removing this
+    # makes SDL2 the only touch source.
+    Config.remove_option("input", "%(name)s")
 
 # This is a kiosk app with no exit button anywhere in the UI, so the
 # default "Escape key quits the app" shortcut must be turned off in both

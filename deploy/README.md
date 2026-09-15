@@ -159,6 +159,20 @@ the same way rather than assuming the matrix above applies:
    Send the two measured pairs along with which matrix is currently
    active if you want help computing the correction.
 
+**If dragging always misreads as rotate/resize (not just occasionally),
+or taps land wrong in a way that seems to change from tap to tap**: check
+`journalctl -u galanda.service` for a line like
+`[MTD] </dev/input/eventN> rotation set to 0`. That means Kivy's own
+built-in Linux touch auto-detection (`kivy/config.py` unconditionally
+sets `Config.setdefault("input", "%(name)s", "probesysfs...")` on Linux)
+is reading the touch device directly, in addition to -- not instead of --
+SDL2's normal window input, so every physical touch was arriving as two
+separate, differently-positioned Kivy touches. `main.py` already disables
+this in kiosk mode (`Config.remove_option("input", "%(name)s")`) so SDL2
+is the only touch source; if you ever see that log line again after
+pulling latest, something re-added it (a stray `%(name)s` line manually
+added to `~/.kivy/config.ini`, most likely).
+
 Separately, `theme.TOUCH_JITTER_DISTANCE` (used in `main.py`, kiosk mode
 only) filters out small raw-coordinate noise this kind of commodity USB
 touch panel tends to report even when held still, so a steady touch
