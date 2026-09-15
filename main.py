@@ -83,13 +83,17 @@ else:
     # the ONLY thing actually delivering touch on this kiosk's
     # Wayland/labwc session (SDL2 wasn't reliably feeding touch through on
     # its own -- an earlier attempt to remove this entirely left the app
-    # with no working touch at all). See deploy/README.md for how to solve
-    # the right rotation/invert_x/invert_y combination for a given
-    # touchscreen -- do not guess this from a different pipeline's data
-    # (e.g. libinput), it has to be measured directly through THIS
-    # provider. Left at rotation=0 (raw, unrotated) while that
-    # measurement is temporarily in progress -- see the DEBUG block below.
-    Config.set("input", "%(name)s", "probesysfs,provider=mtdev")
+    # with no working touch at all). It defaults to reading the touch
+    # device raw (no rotation), which doesn't match the screen's OS-level
+    # rotation -- `param=rotation=90,param=invert_x=1` is forwarded
+    # through to the underlying mtdev provider (its own rotation/invert_x/
+    # invert_y options, see kivy/input/providers/mtdev.py) to correct
+    # that. This exact combination was solved from mtdev.py's own
+    # coordinate math against three real touch points measured directly
+    # through this provider (see deploy/README.md and git history) --
+    # not inferred from a different pipeline (that was tried first and
+    # was wrong).
+    Config.set("input", "%(name)s", "probesysfs,provider=mtdev,param=rotation=90,param=invert_x=1")
     # Kivy's default "mouse" input provider (Config.setdefault("input",
     # "mouse", "mouse") in kivy/config.py, always present unless
     # overridden) turns out to ALSO deliver a touch for every physical
@@ -113,26 +117,6 @@ from kivy.graphics import Color, Rectangle
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 
-if not theme.DEV_MODE:
-    # TEMPORARY -- remove once the duplicate-touch source (see git log) is
-    # identified and suppressed. Every physical tap is producing TWO
-    # touches with sx/sy swapped between them -- logging the device/
-    # provider each one actually came from to find out which is the
-    # extra one to filter out.
-    def _debug_log_touch(_window, etype, motion_event):
-        if etype == "begin" and "pos" in motion_event.profile:
-            # flush=True: stdout is line-buffered on a real terminal but
-            # block-buffered when captured by journald (systemd), so a
-            # plain print() here could sit unflushed and never show up in
-            # `journalctl -f` in real time.
-            print(
-                f"DEBUG TOUCH sx={motion_event.sx:.4f} sy={motion_event.sy:.4f} "
-                f"device={motion_event.device!r} type_id={motion_event.type_id!r} "
-                f"provider={type(motion_event).__module__}",
-                flush=True,
-            )
-
-    Window.bind(on_motion=_debug_log_touch)
 from kivy.uix.scatter import Scatter
 
 import email_sender

@@ -123,40 +123,53 @@ app**, no matter how correct, because libinput never sees this data path
 device. The fix has to happen in `main.py`'s `Config.set("input", ...)`
 line instead, via `mtdev`'s own `rotation`/`invert_x`/`invert_y`
 parameters (documented in `kivy/input/providers/mtdev.py`, passed through
-`probesysfs`'s `param=` syntax -- see that file's docstring).
+`probesysfs`'s `param=` syntax -- see that file's docstring). The current
+line, correct for **this kiosk's iiyama ProLite TF3215MC (eGalax P81X84
+controller)**:
+```
+Config.set("input", "%(name)s", "probesysfs,provider=mtdev,param=rotation=90,param=invert_x=1")
+```
 
-If the display is rotated to portrait at the OS level (raspi-config /
-Control Centre -> Screens) and touches land wrong or dragging misbehaves,
-diagnose and fix it at the mtdev layer:
+**There was also a second, independent bug on top of the rotation**:
+Kivy's default `"mouse"` input provider (`Config.setdefault("input",
+"mouse", "mouse")` in `kivy/config.py`, always present unless overridden)
+was ALSO generating a touch for every physical tap here -- almost
+certainly SDL2/XWayland synthesizing a pointer event from the
+touchscreen (Xwayland is involved; see the `xinput` warnings in the log).
+Every tap produced two Kivy touches with sx/sy swapped between them,
+which is what made dragging misread as a two-finger rotate/resize
+constantly rather than occasionally, and made taps land inconsistently
+depending on which of the two events a widget happened to process first.
+`main.py` disables it in kiosk mode with `Config.remove_option("input",
+"mouse")`. Confirmed (not guessed) by temporarily logging
+`motion_event.device` / `type(motion_event).__module__` for every touch
+-- see git history for that debug commit if this needs re-diagnosing on
+different hardware.
 
-1. Find the exact `/dev/input/eventN` path: `libinput list-devices` (or
-   `cat /proc/bus/input/devices`) -- still useful just to identify the
-   device, even though libinput itself doesn't matter here.
-2. Get 2+ known reference touches to solve for the right parameters
-   rather than guessing: watch `journalctl -u galanda.service -f` isn't
-   useful for per-touch coordinates, so instead temporarily add a print
-   of `touch.sx, touch.sy` somewhere touch-handling runs (e.g. the top of
-   `CanvasArea.on_touch_down` in `canvas_widgets.py`), redeploy, tap
-   dead-center and then the screen's actual top-left corner, and read the
-   two `(sx, sy)` pairs back from `journalctl`. Remove the print
-   afterwards.
-3. Work out the right `rotation`/`invert_x`/`invert_y` combination from
+If setting this up on a *different* Pi/touchscreen, don't infer the
+rotation/invert values from `libinput debug-events` or any other
+pipeline -- measure them directly through mtdev, the same way this was
+solved:
+
+1. Find the exact `/dev/input/eventN` path with `libinput list-devices`
+   or `cat /proc/bus/input/devices` (just to identify the device -- the
+   actual libinput calibration doesn't matter for this app).
+2. Temporarily add a debug print of `motion_event.sx`, `motion_event.sy`
+   (and `motion_event.device` if more than one provider might be firing)
+   on `Window.bind(on_motion=...)`, with `flush=True` -- stdout is
+   block-buffered under systemd/journald, so a plain `print()` without
+   that can silently never appear in `journalctl -f`. Redeploy.
+3. Watch `journalctl -u galanda.service -f` and tap three known points
+   one at a time, a couple seconds apart: dead-center, the screen's
+   actual top-left corner, and its actual top-right corner. Three points
+   pins down both axes independently; two can be ambiguous.
+4. If more than one debug line appears per tap, you have the same
+   duplicate-provider problem -- identify and disable the extra source
+   first (see above) before trying to solve rotation, or the two
+   interleaved data points will not make sense together.
+5. Work out `rotation` (0/90/180/270) and `invert_x`/`invert_y` from
    `mtdev.py`'s own coordinate logic (`assign_coord` in that file) against
-   those two points, the same way `rotation=90` (no inversion) was solved
-   for **this kiosk's iiyama ProLite TF3215MC (eGalax P81X84
-   controller)** -- see the current line in `main.py`:
-   ```
-   Config.set("input", "%(name)s", "probesysfs,provider=mtdev,param=rotation=90")
-   ```
-   `rotation` only takes 0/90/180/270; if the axes come out swapped or
-   mirrored on top of a rotation that's otherwise close, add
-   `param=invert_x=1` and/or `param=invert_y=1` (comma-separated, each
-   its own `param=` entry) and re-derive from the same two data points.
-
-A `LIBINPUT_CALIBRATION_MATRIX` udev rule was set up earlier for this
-device (see git history) before this was understood -- it's harmless to
-leave in place (it just calibrates a pipeline this app doesn't use) but
-isn't doing anything for this app's touch behavior.
+   the three clean points, then remove the debug block.
 
 Separately, `theme.TOUCH_JITTER_DISTANCE` (used in `main.py`, kiosk mode
 only) filters out small raw-coordinate noise this kind of commodity USB
