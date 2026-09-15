@@ -90,6 +90,15 @@ else:
     # provider. Left at rotation=0 (raw, unrotated) while that
     # measurement is temporarily in progress -- see the DEBUG block below.
     Config.set("input", "%(name)s", "probesysfs,provider=mtdev")
+    # Kivy's default "mouse" input provider (Config.setdefault("input",
+    # "mouse", "mouse") in kivy/config.py, always present unless
+    # overridden) turns out to ALSO deliver a touch for every physical
+    # tap here -- confirmed via debug logging: each tap produced both an
+    # mtdev touch (raw, unrotated) and a "mouse" touch with sx/sy swapped
+    # relative to it, almost certainly SDL2/XWayland synthesizing a
+    # pointer event from the touchscreen. Disabling it removes that
+    # duplicate, leaving mtdev above as the sole touch source.
+    Config.remove_option("input", "mouse")
 
 # This is a kiosk app with no exit button anywhere in the UI, so the
 # default "Escape key quits the app" shortcut must be turned off in both
