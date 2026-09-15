@@ -65,7 +65,7 @@ DEV_FIT_INITIAL_SCALE = 0.35
 # jitter -- see Config.set("postproc", "jitter_distance", ...) in main.py,
 # applied in kiosk mode only (DEV_MODE's mouse/trackpad input doesn't have
 # this noise, so filtering it there would just make drags feel laggy).
-TOUCH_JITTER_DISTANCE = 6
+TOUCH_JITTER_DISTANCE = 0  # TEMPORARY: 0 to test whether this is why dragging stopped working
 
 # See DraggableImage.on_touch_down in canvas_widgets.py -- a new touch
 # landing within this many pixels (at kiosk resolution) of one already
