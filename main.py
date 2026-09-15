@@ -105,19 +105,23 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 
 if not theme.DEV_MODE:
-    # TEMPORARY -- remove once the correct rotation/invert_x/invert_y for
-    # this touchscreen's mtdev provider (see the Config.set("input", ...)
-    # call above) has been measured. Logs every touch's raw sx/sy exactly
-    # as Kivy's provider reports them, before any widget sees it, so the
-    # right correction can be computed from real data through the actual
-    # code path in use instead of inferred from a different one.
+    # TEMPORARY -- remove once the duplicate-touch source (see git log) is
+    # identified and suppressed. Every physical tap is producing TWO
+    # touches with sx/sy swapped between them -- logging the device/
+    # provider each one actually came from to find out which is the
+    # extra one to filter out.
     def _debug_log_touch(_window, etype, motion_event):
         if etype == "begin" and "pos" in motion_event.profile:
             # flush=True: stdout is line-buffered on a real terminal but
             # block-buffered when captured by journald (systemd), so a
             # plain print() here could sit unflushed and never show up in
             # `journalctl -f` in real time.
-            print(f"DEBUG TOUCH sx={motion_event.sx:.4f} sy={motion_event.sy:.4f}", flush=True)
+            print(
+                f"DEBUG TOUCH sx={motion_event.sx:.4f} sy={motion_event.sy:.4f} "
+                f"device={motion_event.device!r} type_id={motion_event.type_id!r} "
+                f"provider={type(motion_event).__module__}",
+                flush=True,
+            )
 
     Window.bind(on_motion=_debug_log_touch)
 from kivy.uix.scatter import Scatter
