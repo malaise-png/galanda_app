@@ -171,12 +171,13 @@ solved:
    `mtdev.py`'s own coordinate logic (`assign_coord` in that file) against
    the three clean points, then remove the debug block.
 
-Separately, `theme.TOUCH_JITTER_DISTANCE` (used in `main.py`, kiosk mode
-only) filters out small raw-coordinate noise this kind of commodity USB
-touch panel tends to report even when held still, so a steady touch
-doesn't read as a tiny unintended drag. Increase it a bit if dragging
-still feels jittery after fixing the rotation above; keep it small enough
-that quick, precise taps still register cleanly.
+**`theme.TOUCH_JITTER_DISTANCE` is left at `0` (disabled) on purpose.**
+The idea was to filter small raw-coordinate noise this kind of commodity
+USB touch panel reports even while held still, but in practice Kivy's
+jitter postproc ate genuine drag/pinch/rotate moves entirely for this
+device -- any nonzero value broke one-finger dragging and two-finger
+gestures completely, not just smoothed noise. Don't re-enable it without
+thorough on-device testing of actual dragging, not just tapping.
 
 `canvas_widgets.py`'s `DraggableImage.on_touch_down` also rejects any new
 touch landing within `theme.GHOST_TOUCH_MIN_SEPARATION` pixels of one
@@ -188,3 +189,19 @@ calculation wildly unstable (a plain one-finger drag would suddenly
 rotate or resize). Raise that constant if genuine two-finger gestures
 ever misfire as noise (unlikely -- real fingers start much farther apart
 than the default), or lower it if single-finger drags still glitch.
+
+## Email on-screen keyboard
+
+The email bar (`EmailSendBar` in `menu_widgets.py`) uses a custom
+on-screen keyboard (`_SimpleKeyboard`, built from this app's own
+widgets) rather than Kivy's built-in docked keyboard
+(`keyboard_mode="dock"`, `Window.request_keyboard`). That built-in path
+was tried first and confirmed (via temporary debug logging) to succeed
+at the API level -- `request_keyboard()` returns a real `Keyboard`
+object, `get_root_window()` resolves correctly -- but nothing ever
+visually appears on this kiosk's Wayland/labwc + portrait setup. Rather
+than debug a rendering path with no visibility into it, `_SimpleKeyboard`
+sidesteps it entirely using the same widget/touch system already proven
+reliable here. If a future Kivy/OS update fixes the underlying docked
+keyboard, this custom one can be dropped in favor of it -- but verify
+thoroughly on-device first, the same way this was diagnosed.
