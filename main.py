@@ -73,6 +73,10 @@ else:
     # keyboard attached. Left as the default ("") in DEV_MODE, so dev
     # testing just uses the laptop's real keyboard instead.
     Config.set("kivy", "keyboard_mode", "dock")
+    # See theme.TOUCH_JITTER_DISTANCE -- absorbs small raw-coordinate noise
+    # from the touch panel so a held/slow touch doesn't register as a tiny
+    # unintended drag.
+    Config.set("postproc", "jitter_distance", str(theme.TOUCH_JITTER_DISTANCE))
 
 # This is a kiosk app with no exit button anywhere in the UI, so the
 # default "Escape key quits the app" shortcut must be turned off in both

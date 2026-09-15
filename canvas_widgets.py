@@ -20,6 +20,7 @@ from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.label import Label
 from kivy.uix.scatter import Scatter
 from kivy.uix.widget import Widget
+from kivy.vector import Vector
 
 import image_assets
 import theme
@@ -143,6 +144,21 @@ class DraggableImage(Scatter):
             self.remove_widget(self._delete_badge)
 
     def on_touch_down(self, touch):
+        # Some touch controllers (this kiosk's eGalax panel included)
+        # occasionally report a spurious second contact point a few pixels
+        # from a real single-finger touch. Scatter treats any two touches
+        # it's tracking as a rotate/scale gesture (see
+        # transform_with_touch in kivy/uix/scatter.py), and that gesture's
+        # angle/scale math is numerically unstable when the two points are
+        # nearly coincident -- tiny sensor noise then reads as a sudden,
+        # unwanted rotate/resize in the middle of what should be a plain
+        # one-finger drag. Refusing to grab a new touch that lands
+        # implausibly close to one already being tracked keeps a ghost
+        # point from ever becoming Scatter's "second finger".
+        for existing_touch in self._touches:
+            if Vector(*touch.pos).distance(self._last_touch_pos[existing_touch]) < theme.GHOST_TOUCH_MIN_SEPARATION:
+                return False
+
         # Scatter's own on_touch_down already checks whether the touch is
         # actually inside this image (accounting for its current rotation
         # and scale) before returning True, so `handled` being True already

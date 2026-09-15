@@ -56,6 +56,26 @@ DEV_FIT_TO_SCREEN = True
 DEV_FIT_SCREEN_MARGIN = 0.85
 DEV_FIT_INITIAL_SCALE = 0.35
 
+# Large commodity USB touch panels (this kiosk uses an iiyama ProLite
+# TF3215MC) tend to report a few pixels of raw coordinate noise per frame
+# even while a finger is held still -- without filtering, that noise reads
+# to Kivy as a tiny continuous drag, making touches feel jumpy/erratic
+# instead of steady. This is the radius (in pixels, at kiosk resolution) a
+# touch has to move before it counts as an intentional move rather than
+# jitter -- see Config.set("postproc", "jitter_distance", ...) in main.py,
+# applied in kiosk mode only (DEV_MODE's mouse/trackpad input doesn't have
+# this noise, so filtering it there would just make drags feel laggy).
+TOUCH_JITTER_DISTANCE = 6
+
+# See DraggableImage.on_touch_down in canvas_widgets.py -- a new touch
+# landing within this many pixels (at kiosk resolution) of one already
+# being tracked by the same image is treated as sensor noise (a ghost
+# duplicate of the real finger) rather than a genuine second finger, and
+# is ignored so it can't trigger an unwanted rotate/resize. Real two-finger
+# pinch/rotate gestures start with fingers much farther apart than this, so
+# there's plenty of margin before this could reject an intentional gesture.
+GHOST_TOUCH_MIN_SEPARATION = 50
+
 # ---------------------------------------------------------------------------
 # Screen / layout
 # ---------------------------------------------------------------------------
