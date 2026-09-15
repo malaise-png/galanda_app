@@ -92,11 +92,28 @@ def _add_space_between(container, widgets):
         container.add_widget(widget)
 
 
+class _PaddedButton(Button):
+    """A Button whose tappable area extends theme.BUTTON_TOUCH_PADDING
+    pixels past its visible box on every side. These flat buttons are
+    sized to hug just their own text (see _make_button/_make_lang_button),
+    which makes for a small, precise tap target -- often sitting right at
+    a screen edge, exactly where this kiosk's touchscreen is least
+    accurate. Padding the hit area (not the visible size) keeps the look
+    unchanged."""
+
+    def collide_point(self, x, y):
+        pad = theme.BUTTON_TOUCH_PADDING
+        return (
+            self.x - pad <= x <= self.right + pad
+            and self.y - pad <= y <= self.top + pad
+        )
+
+
 def _make_button(text_key, on_press, color=None):
     """A themed, borderless (no background frame) Button -- just its label
     floating on whatever it's placed on -- whose text is registered for
     translation, so it updates automatically when the language switches."""
-    button = Button(
+    button = _PaddedButton(
         font_size=theme.FONT_SIZE_NORMAL,
         **theme.font_kwargs(),
         background_normal="",
@@ -233,7 +250,7 @@ class TopBar(BoxLayout):
         # itself (via texture_size) rather than a fixed guess, so the
         # lang_row's own minimum_width -- and so the right margin it lines
         # up against -- reflects the actual rendered text.
-        button = Button(
+        button = _PaddedButton(
             text=text,
             font_size=theme.FONT_SIZE_NORMAL,
             **theme.font_kwargs(),

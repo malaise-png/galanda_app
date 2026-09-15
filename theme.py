@@ -76,6 +76,14 @@ TOUCH_JITTER_DISTANCE = 6
 # there's plenty of margin before this could reject an intentional gesture.
 GHOST_TOUCH_MIN_SEPARATION = 50
 
+# See _PaddedButton in menu_widgets.py -- how far (in pixels, at kiosk
+# resolution) a flat text button's tappable area extends past its visible
+# text on every side. These buttons are sized to hug just their own text
+# and several (Info, SK/EN) sit flush against a screen edge, which is
+# both a small target and where this kind of touchscreen tends to be
+# least accurate.
+BUTTON_TOUCH_PADDING = 24
+
 # ---------------------------------------------------------------------------
 # Screen / layout
 # ---------------------------------------------------------------------------

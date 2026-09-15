@@ -260,9 +260,14 @@ class GalandaApp(App):
 
     def _refresh_email_bar(self, *_args):
         if self.state.email_bar_open:
-            self.email_send_bar.show()
+            # Added to the tree BEFORE show() focuses the email TextInput --
+            # focusing it is what triggers Kivy's docked on-screen keyboard
+            # (see keyboard_mode in main.py's kiosk Config), and that request
+            # needs the widget's get_root_window() to already resolve, which
+            # it can't do while still parentless.
             if self.email_send_bar.parent is None:
                 self.root_layout.add_widget(self.email_send_bar)
+            self.email_send_bar.show()
         elif self.email_send_bar.parent is not None:
             self.root_layout.remove_widget(self.email_send_bar)
 
