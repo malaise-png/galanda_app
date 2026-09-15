@@ -593,6 +593,14 @@ class EmailSendBar(BoxLayout):
         self._email_input.text = ""
         self._error_label.text = ""
         self._email_input.focus = True
+        # TEMPORARY debug -- see if the docked keyboard is actually being
+        # requested (and succeeding) when this bar opens.
+        print(
+            f"DEBUG KEYBOARD focus={self._email_input.focus} "
+            f"_keyboard={self._email_input._keyboard!r} "
+            f"root_window={self._email_input.get_root_window()!r}",
+            flush=True,
+        )
 
     def _cancel(self):
         App.get_running_app().state.close_send_bar()

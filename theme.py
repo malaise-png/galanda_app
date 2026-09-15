@@ -56,16 +56,15 @@ DEV_FIT_TO_SCREEN = True
 DEV_FIT_SCREEN_MARGIN = 0.85
 DEV_FIT_INITIAL_SCALE = 0.35
 
-# Large commodity USB touch panels (this kiosk uses an iiyama ProLite
-# TF3215MC) tend to report a few pixels of raw coordinate noise per frame
-# even while a finger is held still -- without filtering, that noise reads
-# to Kivy as a tiny continuous drag, making touches feel jumpy/erratic
-# instead of steady. This is the radius (in pixels, at kiosk resolution) a
-# touch has to move before it counts as an intentional move rather than
-# jitter -- see Config.set("postproc", "jitter_distance", ...) in main.py,
-# applied in kiosk mode only (DEV_MODE's mouse/trackpad input doesn't have
-# this noise, so filtering it there would just make drags feel laggy).
-TOUCH_JITTER_DISTANCE = 0  # TEMPORARY: 0 to test whether this is why dragging stopped working
+# Left at 0 (disabled) -- see Config.set("postproc", "jitter_distance",
+# ...) in main.py. The intent was to absorb a few pixels of raw
+# coordinate noise this eGalax touch controller reports even while a
+# finger is held still, but in practice Kivy's jitter postproc ate
+# genuine drag/pinch/rotate moves entirely for this device (one-finger
+# drag and two-finger gestures stopped working completely with any
+# nonzero value) -- not worth the tradeoff. Revisit only with a much
+# smaller value and thorough on-device testing, not assumed safe.
+TOUCH_JITTER_DISTANCE = 0
 
 # See DraggableImage.on_touch_down in canvas_widgets.py -- a new touch
 # landing within this many pixels (at kiosk resolution) of one already
