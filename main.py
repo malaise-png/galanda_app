@@ -113,7 +113,11 @@ if not theme.DEV_MODE:
     # code path in use instead of inferred from a different one.
     def _debug_log_touch(_window, etype, motion_event):
         if etype == "begin" and "pos" in motion_event.profile:
-            print(f"DEBUG TOUCH sx={motion_event.sx:.4f} sy={motion_event.sy:.4f}")
+            # flush=True: stdout is line-buffered on a real terminal but
+            # block-buffered when captured by journald (systemd), so a
+            # plain print() here could sit unflushed and never show up in
+            # `journalctl -f` in real time.
+            print(f"DEBUG TOUCH sx={motion_event.sx:.4f} sy={motion_event.sy:.4f}", flush=True)
 
     Window.bind(on_motion=_debug_log_touch)
 from kivy.uix.scatter import Scatter
