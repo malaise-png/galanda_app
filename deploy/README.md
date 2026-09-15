@@ -104,74 +104,59 @@ desktop/terminal on the Pi itself.
 
 ## Touchscreen: rotated screen but misaligned/jumpy touch
 
-If the display was rotated to portrait at the OS level (raspi-config /
-Control Centre -> Screens, not something this repo scripts), touch input
-often does NOT rotate along with it -- this is a known gap in the
-labwc/Wayland desktop (current default on Raspberry Pi OS), not an app
-bug. Symptom: taps land offset from where you actually touched, and
-dragging feels jumpy/erratic because the drag math is working across
-mismatched axes.
+**Key fact, found the hard way**: this app does NOT get its touch input
+through SDL2/Wayland/libinput on this kiosk. `journalctl -u
+galanda.service` shows Kivy's own built-in Linux touch auto-detection
+(`kivy/config.py` unconditionally sets `Config.setdefault("input",
+"%(name)s", "probesysfs...")` on Linux) reading `/dev/input/eventN`
+directly via its `mtdev` provider -- confirmed because *removing* that
+provider (to try to stop what looked like duplicate touches) left the
+app with no working touch at all. SDL2 does register as an input
+provider too (`auto add sdl2 input provider` in the log, and Xwayland is
+involved -- see the `xinput` warnings), but it isn't what's actually
+driving touches into the app.
 
-Fix it with a libinput calibration matrix, applied via udev rule so it's
-independent of any app or window manager:
+This matters a lot for troubleshooting: **a libinput/udev-level fix (a
+`LIBINPUT_CALIBRATION_MATRIX` rule, `xinput`, etc.) has NO EFFECT on this
+app**, no matter how correct, because libinput never sees this data path
+-- it's a completely different code path read straight from the kernel
+device. The fix has to happen in `main.py`'s `Config.set("input", ...)`
+line instead, via `mtdev`'s own `rotation`/`invert_x`/`invert_y`
+parameters (documented in `kivy/input/providers/mtdev.py`, passed through
+`probesysfs`'s `param=` syntax -- see that file's docstring).
 
-1. Find the exact touch device name:
-   ```
-   libinput list-devices
-   ```
-   (install with `sudo apt-get install -y libinput-tools` if missing).
-   Look for the touch monitor's entry and note its exact `Device:` name.
-2. Create `/etc/udev/rules.d/90-touch-rotate.rules`:
-   ```
-   SUBSYSTEM=="input", ATTRS{name}=="<exact device name from step 1>", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1 1 0 0"
-   ```
-   That matrix (from libinput's own documentation) is for a 90 clockwise
-   rotation -- use `-1 0 1 0 -1 1` for 180, or `0 1 0 -1 0 1` for 270
-   clockwise (90 counter-clockwise), matching whatever direction you
-   rotated the screen.
-3. `sudo udevadm control --reload-rules && sudo reboot`, then re-test.
+If the display is rotated to portrait at the OS level (raspi-config /
+Control Centre -> Screens) and touches land wrong or dragging misbehaves,
+diagnose and fix it at the mtdev layer:
 
-A pure rotation matrix assumes the touch sensor's active area lines up
-exactly with the visible screen edge-to-edge. On a large overlay touch
-panel there's often a real mechanical/wiring offset on top of that -- on
-this kiosk's **iiyama ProLite TF3215MC (eGalax P81X84 controller)**,
-after the 90 clockwise rotation above the touchscreen's Y axis came out
-inverted (confirmed by touching the screen's actual top-left corner and
-seeing `libinput debug-events --device <path>` report it near the
-*bottom*-left instead). The corrected matrix for this exact unit is:
-```
-0 -1 1 -1 0 1
-```
-If you're setting up a *different* Pi/touchscreen and see something
-similar (taps land offset, buttons only respond in the wrong spot,
-dragging feels erratic even after the plain rotation matrix), diagnose it
-the same way rather than assuming the matrix above applies:
-1. `sudo libinput debug-events --device <your device's /dev/input/eventN>`
-   (from `libinput list-devices`).
-2. Touch dead-center of the screen once, then the screen's actual
-   top-left corner once -- note the two `TOUCH_DOWN` percentages printed
-   for each.
-3. Compare against what those two touches *should* have reported
-   (roughly 50/50 for center, 0/0 for top-left in libinput's percentage
-   convention). A consistent inversion on one axis only (as above) means
-   swap that axis's sign and offset in the matrix; a consistent
-   scale/shift on both points suggests an offset/scale error instead.
-   Send the two measured pairs along with which matrix is currently
-   active if you want help computing the correction.
+1. Find the exact `/dev/input/eventN` path: `libinput list-devices` (or
+   `cat /proc/bus/input/devices`) -- still useful just to identify the
+   device, even though libinput itself doesn't matter here.
+2. Get 2+ known reference touches to solve for the right parameters
+   rather than guessing: watch `journalctl -u galanda.service -f` isn't
+   useful for per-touch coordinates, so instead temporarily add a print
+   of `touch.sx, touch.sy` somewhere touch-handling runs (e.g. the top of
+   `CanvasArea.on_touch_down` in `canvas_widgets.py`), redeploy, tap
+   dead-center and then the screen's actual top-left corner, and read the
+   two `(sx, sy)` pairs back from `journalctl`. Remove the print
+   afterwards.
+3. Work out the right `rotation`/`invert_x`/`invert_y` combination from
+   `mtdev.py`'s own coordinate logic (`assign_coord` in that file) against
+   those two points, the same way `rotation=90` (no inversion) was solved
+   for **this kiosk's iiyama ProLite TF3215MC (eGalax P81X84
+   controller)** -- see the current line in `main.py`:
+   ```
+   Config.set("input", "%(name)s", "probesysfs,provider=mtdev,param=rotation=90")
+   ```
+   `rotation` only takes 0/90/180/270; if the axes come out swapped or
+   mirrored on top of a rotation that's otherwise close, add
+   `param=invert_x=1` and/or `param=invert_y=1` (comma-separated, each
+   its own `param=` entry) and re-derive from the same two data points.
 
-**If dragging always misreads as rotate/resize (not just occasionally),
-or taps land wrong in a way that seems to change from tap to tap**: check
-`journalctl -u galanda.service` for a line like
-`[MTD] </dev/input/eventN> rotation set to 0`. That means Kivy's own
-built-in Linux touch auto-detection (`kivy/config.py` unconditionally
-sets `Config.setdefault("input", "%(name)s", "probesysfs...")` on Linux)
-is reading the touch device directly, in addition to -- not instead of --
-SDL2's normal window input, so every physical touch was arriving as two
-separate, differently-positioned Kivy touches. `main.py` already disables
-this in kiosk mode (`Config.remove_option("input", "%(name)s")`) so SDL2
-is the only touch source; if you ever see that log line again after
-pulling latest, something re-added it (a stray `%(name)s` line manually
-added to `~/.kivy/config.ini`, most likely).
+A `LIBINPUT_CALIBRATION_MATRIX` udev rule was set up earlier for this
+device (see git history) before this was understood -- it's harmless to
+leave in place (it just calibrates a pipeline this app doesn't use) but
+isn't doing anything for this app's touch behavior.
 
 Separately, `theme.TOUCH_JITTER_DISTANCE` (used in `main.py`, kiosk mode
 only) filters out small raw-coordinate noise this kind of commodity USB

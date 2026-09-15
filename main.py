@@ -77,13 +77,25 @@ else:
     # from the touch panel so a held/slow touch doesn't register as a tiny
     # unintended drag.
     Config.set("postproc", "jitter_distance", str(theme.TOUCH_JITTER_DISTANCE))
-    # NOTE: kivy/config.py's default Config.setdefault("input", "%(name)s",
-    # "probesysfs...") on Linux -- Kivy's own direct-from-/dev/input touch
-    # provider -- turned out to be the ONLY thing actually delivering
-    # touch on this kiosk's Wayland/labwc session (SDL2 wasn't reliably
-    # feeding touch through on its own): removing it here previously left
-    # the app with no working touch at all. Do not remove/override this
-    # without testing on the real hardware first.
+    # Kivy's own kivy/config.py adds this "%(name)s = probesysfs,..." entry
+    # by default on Linux -- a direct-from-/dev/input touch provider that
+    # runs independently of SDL2's own window input, and turned out to be
+    # the ONLY thing actually delivering touch on this kiosk's
+    # Wayland/labwc session (SDL2 wasn't reliably feeding touch through on
+    # its own -- an earlier attempt to remove this entirely left the app
+    # with no working touch at all). It defaults to reading the touch
+    # device raw, with no rotation applied, which doesn't match the
+    # screen's 90 clockwise OS-level rotation (see deploy/README.md) --
+    # `param=rotation=90` is forwarded straight through to the underlying
+    # mtdev provider (see probesysfs.py's own docstring for that syntax),
+    # which applies the rotation itself. This is a DIFFERENT code path
+    # from -- and not affected by -- the libinput calibration matrix
+    # described in deploy/README.md; that matrix only matters for
+    # touch delivered through Wayland/libinput/SDL2, which this app isn't
+    # actually using. rotation=90 (with no extra invert flags) was solved
+    # directly from mtdev.py's own coordinate math against two known real
+    # touch points (see deploy/README.md), not guessed.
+    Config.set("input", "%(name)s", "probesysfs,provider=mtdev,param=rotation=90")
 
 # This is a kiosk app with no exit button anywhere in the UI, so the
 # default "Escape key quits the app" shortcut must be turned off in both
