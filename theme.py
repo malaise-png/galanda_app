@@ -117,11 +117,11 @@ EMAIL_BAR_HEIGHT = 700
 # bottom bar, so their content (the Info button and SK/EN switch in the top
 # bar especially) all lines up against the same left/right margin instead of
 # each bar picking its own.
-SIDE_MARGIN = 20
+SIDE_MARGIN = 40
 
 # Gap left on each side between the dropdown and the screen edge, so it
 # doesn't span edge-to-edge.
-DROPDOWN_SIDE_MARGIN = 24
+DROPDOWN_SIDE_MARGIN = 0
 
 # A plain line along the dropdown's bottom edge only -- its border.
 DROPDOWN_OUTLINE_COLOR = (1, 1, 1, 1)
@@ -152,8 +152,8 @@ MAX_INSTANCES_PER_CATEGORY = {
 # The canvas is a fixed-size rectangle in the middle of the screen -- it is
 # NOT the whole remaining space, it's deliberately smaller so there's a
 # visible black margin around it. Change these two numbers to resize it.
-CANVAS_WIDTH = 960
-CANVAS_HEIGHT = 1350
+CANVAS_WIDTH = 723
+CANVAS_HEIGHT = 1016
 
 # CanvasArea's own base look: a PNG dropped into assets/canvas/ (see
 # image_assets.get_canvas_texture) is stretched to fill the whole canvas --
@@ -196,7 +196,7 @@ FONT_NAME = os.path.join(BASE_DIR, "fonts", "RoobertTRIAL-Medium.ttf")
 # INTRO_BUTTON_FONT_SIZE below), which keeps its own separate size so
 # changes here don't affect it.
 FONT_SIZE_SMALL = "22sp"
-FONT_SIZE_NORMAL = "28sp"
+FONT_SIZE_NORMAL = "38sp"
 FONT_SIZE_LARGE = "40sp"
 
 # The intro screen's START/Nová kompozícia label -- frozen at the size

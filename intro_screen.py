@@ -16,9 +16,9 @@
 import os
 
 from kivy.app import App
-from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 
@@ -35,23 +35,22 @@ _BUTTON_CONFIG = {
 }
 
 
-class _IntroButton(ButtonBehavior, AnchorLayout):
+class _IntroButton(ButtonBehavior, FloatLayout):
     """Icon+text button whose icon, label, AND layout all change together
     (see _BUTTON_CONFIG) as AppState.intro_button_key changes -- unlike
-    every other icon button in the app, which has one fixed icon/layout."""
+    every other icon button in the app, which has one fixed icon/layout.
+
+    The icon and label are positioned by hand in _relayout() rather than by
+    a nested BoxLayout: a BoxLayout re-lays out its children on its own
+    schedule and snaps them back to one edge on the cross axis, undoing any
+    centering applied from outside, which left the icon and text off-axis."""
 
     def __init__(self, on_press, **kwargs):
-        kwargs.setdefault("anchor_x", "center")
-        kwargs.setdefault("anchor_y", "center")
         kwargs.setdefault("size_hint", (1, None))
         kwargs.setdefault("height", 280)
         super().__init__(**kwargs)
         self.bind(on_press=lambda *_a: on_press())
-
-        self.content = BoxLayout(orientation="vertical", size_hint=(None, None))
-        self.content.bind(
-            minimum_width=self.content.setter("width"), minimum_height=self.content.setter("height")
-        )
+        self._stacked = True
 
         self.icon = Image(
             size_hint=(None, None),
@@ -59,7 +58,7 @@ class _IntroButton(ButtonBehavior, AnchorLayout):
             allow_stretch=True,
             keep_ratio=True,
         )
-        self.content.add_widget(self.icon)
+        self.add_widget(self.icon)
 
         self.label = Label(
             font_size=theme.INTRO_BUTTON_FONT_SIZE,
@@ -69,29 +68,37 @@ class _IntroButton(ButtonBehavior, AnchorLayout):
             halign="center",
         )
         self.label.bind(texture_size=self.label.setter("size"))
-        self.content.add_widget(self.label)
+        self.add_widget(self.label)
 
-        self.add_widget(self.content)
-
-        # A BoxLayout doesn't center children on its own cross axis (it
-        # left/bottom-aligns children of different widths/heights against
-        # each other), so without this the icon and label would sit flush
-        # against one edge instead of centered on one another -- whichever
-        # axis is the CROSS axis depends on the current orientation, so
-        # this re-centers on content/icon/label changes and whenever
-        # set_stacked() flips the orientation.
-        self.content.bind(size=self._recenter, pos=self._recenter, orientation=self._recenter)
-        self.label.bind(size=self._recenter)
-        self._recenter()
+        self.bind(size=self._relayout, pos=self._relayout)
+        self.icon.bind(size=self._relayout)
+        self.label.bind(size=self._relayout)
+        self._relayout()
 
     def set_stacked(self, stacked):
-        self.content.orientation = "vertical" if stacked else "horizontal"
-        self.content.spacing = theme.INTRO_BUTTON_SPACING if stacked else theme.INTRO_BUTTON_SIDE_SPACING
+        self._stacked = stacked
+        self._relayout()
 
-    def _recenter(self, *_args):
-        attr = "center_x" if self.content.orientation == "vertical" else "center_y"
-        setattr(self.icon, attr, getattr(self.content, attr))
-        setattr(self.label, attr, getattr(self.content, attr))
+    def _relayout(self, *_args):
+        icon, label = self.icon, self.label
+        if self._stacked:
+            # Icon above label, both centered on the button's vertical axis.
+            spacing = theme.INTRO_BUTTON_SPACING
+            total_h = icon.height + spacing + label.height
+            top = self.center_y + total_h / 2
+            icon.center_x = self.center_x
+            icon.top = top
+            label.center_x = self.center_x
+            label.top = icon.y - spacing
+        else:
+            # Icon left of label, both centered on the horizontal axis.
+            spacing = theme.INTRO_BUTTON_SIDE_SPACING
+            total_w = icon.width + spacing + label.width
+            left = self.center_x - total_w / 2
+            icon.center_y = self.center_y
+            icon.x = left
+            label.center_y = self.center_y
+            label.x = icon.right + spacing
 
 
 class IntroScreen(BoxLayout):

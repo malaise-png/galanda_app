@@ -27,6 +27,7 @@ from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
@@ -126,7 +127,7 @@ def _make_button(text_key, on_press, color=None):
     return button
 
 
-class _IconButton(ButtonBehavior, AnchorLayout):
+class _IconButton(ButtonBehavior, FloatLayout):
     """A themed, borderless button like _make_button(), but with an icon to
     the left of its label. Sized to hug the icon+label group exactly
     (size_hint_x=None, width tracks that group's own minimum_width) rather
@@ -134,29 +135,29 @@ class _IconButton(ButtonBehavior, AnchorLayout):
     can be edge-aligned (see BottomBar) instead of each button's content
     floating centered in its own equal-width share of the row.
 
+    The icon and label are positioned by hand in _relayout() (both centered
+    on the button's horizontal axis) rather than by a nested BoxLayout,
+    which bottom-aligns children of different heights on its cross axis.
+
     Dims (via opacity) while disabled, since a custom composite like this
     doesn't get Button's automatic disabled-dimming for free."""
 
+    _ICON_LABEL_SPACING = 8
+
     def __init__(self, icon_path, text_key, on_press, **kwargs):
-        kwargs.setdefault("anchor_x", "center")
-        kwargs.setdefault("anchor_y", "center")
         kwargs.setdefault("size_hint", (None, 1))
         super().__init__(**kwargs)
         self.bind(on_press=lambda *_args: on_press())
         self.bind(disabled=self._refresh_disabled_look)
 
-        content = BoxLayout(orientation="horizontal", spacing=8, size_hint=(None, None))
-        content.bind(minimum_width=content.setter("width"), minimum_height=content.setter("height"))
-        content.bind(width=lambda _inst, value: setattr(self, "width", value))
-
-        icon = Image(
+        self.icon = Image(
             source=icon_path,
             size_hint=(None, None),
             size=theme.BUTTON_ICON_SIZE,
             allow_stretch=True,
             keep_ratio=True,
         )
-        content.add_widget(icon)
+        self.add_widget(self.icon)
 
         self.label = Label(
             font_size=theme.FONT_SIZE_NORMAL,
@@ -166,10 +167,21 @@ class _IconButton(ButtonBehavior, AnchorLayout):
         )
         self.label.bind(texture_size=self.label.setter("size"))
         App.get_running_app().register_i18n(self.label, text_key)
-        content.add_widget(self.label)
+        self.add_widget(self.label)
 
-        self.add_widget(content)
-        self.width = content.width
+        self.bind(pos=self._relayout, height=self._relayout)
+        self.icon.bind(size=self._relayout)
+        self.label.bind(size=self._relayout)
+        self._relayout()
+
+    def _relayout(self, *_args):
+        icon, label = self.icon, self.label
+        # Hug the icon+label group, so a row of these can be edge-aligned.
+        self.width = icon.width + self._ICON_LABEL_SPACING + label.width
+        icon.x = self.x
+        icon.center_y = self.center_y
+        label.x = icon.right + self._ICON_LABEL_SPACING
+        label.center_y = self.center_y
 
     def _refresh_disabled_look(self, _instance, disabled):
         self.opacity = 0.4 if disabled else 1.0
