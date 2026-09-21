@@ -178,10 +178,11 @@ class _IconButton(ButtonBehavior, FloatLayout):
         icon, label = self.icon, self.label
         # Hug the icon+label group, so a row of these can be edge-aligned.
         self.width = icon.width + self._ICON_LABEL_SPACING + label.width
-        icon.x = self.x
-        icon.center_y = self.center_y
-        label.x = icon.right + self._ICON_LABEL_SPACING
-        label.center_y = self.center_y
+        # y-center computed directly: self.center_y is a cached alias that
+        # is stale when this runs from a size/pos change callback.
+        cy = self.y + self.height / 2
+        icon.pos = (self.x, cy - icon.height / 2)
+        label.pos = (self.x + icon.width + self._ICON_LABEL_SPACING, cy - label.height / 2)
 
     def _refresh_disabled_look(self, _instance, disabled):
         self.opacity = 0.4 if disabled else 1.0

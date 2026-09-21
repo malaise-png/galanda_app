@@ -81,24 +81,25 @@ class _IntroButton(ButtonBehavior, FloatLayout):
 
     def _relayout(self, *_args):
         icon, label = self.icon, self.label
+        # Centers are computed from x/y/width/height directly, NOT read from
+        # self.center_x/center_y: those are cached alias properties that are
+        # still stale when this runs from a size/pos change callback, which
+        # left the icon and label stuck at the button's old (tiny) center.
+        cx = self.x + self.width / 2
+        cy = self.y + self.height / 2
         if self._stacked:
             # Icon above label, both centered on the button's vertical axis.
             spacing = theme.INTRO_BUTTON_SPACING
             total_h = icon.height + spacing + label.height
-            top = self.center_y + total_h / 2
-            icon.center_x = self.center_x
-            icon.top = top
-            label.center_x = self.center_x
-            label.top = icon.y - spacing
+            icon_y = cy + total_h / 2 - icon.height
+            icon.pos = (cx - icon.width / 2, icon_y)
+            label.pos = (cx - label.width / 2, icon_y - spacing - label.height)
         else:
             # Icon left of label, both centered on the horizontal axis.
             spacing = theme.INTRO_BUTTON_SIDE_SPACING
-            total_w = icon.width + spacing + label.width
-            left = self.center_x - total_w / 2
-            icon.center_y = self.center_y
-            icon.x = left
-            label.center_y = self.center_y
-            label.x = icon.right + spacing
+            left = cx - (icon.width + spacing + label.width) / 2
+            icon.pos = (left, cy - icon.height / 2)
+            label.pos = (left + icon.width + spacing, cy - label.height / 2)
 
 
 class IntroScreen(BoxLayout):
