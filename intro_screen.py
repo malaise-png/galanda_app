@@ -16,6 +16,7 @@
 import os
 
 from kivy.app import App
+from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -118,7 +119,10 @@ class IntroScreen(BoxLayout):
             # Image plays multi-frame GIFs automatically (default
             # anim_delay=0.25s/frame) -- no extra code needed for that.
             self.image = Image(
-                source=start_image_path, allow_stretch=True, keep_ratio=True, size_hint=(1, 1)
+                source=start_image_path,
+                allow_stretch=True,
+                keep_ratio=True,
+                size_hint=(theme.INTRO_IMAGE_SCALE, theme.INTRO_IMAGE_SCALE),
             )
         else:
             # No start image dropped in yet -- show a placeholder message
@@ -130,7 +134,12 @@ class IntroScreen(BoxLayout):
                 size_hint=(1, 1),
             )
             App.get_running_app().register_i18n(self.image, "start_image_missing")
-        self.add_widget(self.image)
+        # The image is smaller than its slot (see theme.INTRO_IMAGE_SCALE),
+        # and a BoxLayout would pin it to a corner, so it's centered in the
+        # slot by an AnchorLayout.
+        image_slot = AnchorLayout(anchor_x="center", anchor_y="center", size_hint=(1, 1))
+        image_slot.add_widget(self.image)
+        self.add_widget(image_slot)
 
         self.button = _IntroButton(on_press=state.start_composition)
         self.add_widget(self.button)

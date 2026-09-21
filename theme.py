@@ -262,6 +262,11 @@ BUTTON_ICON_SIZE = (44, 44)
 # get a much bigger box than the other icon buttons.
 INTRO_BUTTON_ICON_SIZE = (120, 165)
 
+# Size of the big start/end-screen image (assets/start/) as a fraction (0-1)
+# of the space available to it -- the same widget serves both the start and
+# the end screen, so this sizes both. Lower = smaller image.
+INTRO_IMAGE_SCALE = 0.6
+
 # Gap between the icon and the label: vertical (icon centered above the
 # label) on the start screen, horizontal (icon to the left of the label)
 # on the end screen shown after a send -- see _IntroButton.set_stacked().
