@@ -49,14 +49,29 @@ def get_canvas_texture(assets_dir):
     return None
 
 
-def get_start_image(assets_dir):
-    """Return the path to the single start/end-screen image (an animated
-    GIF or a PNG) in assets/start/, or None if it hasn't been added yet."""
-    start_dir = os.path.join(assets_dir, "start")
-    if not os.path.isdir(start_dir):
+def _get_single_image(assets_dir, folder):
+    """Return the path to the single image (an animated GIF or a PNG) in
+    assets_dir/folder/, or None if it hasn't been added yet. Shared by
+    get_start_image() and get_aftersent_image() below -- same
+    one-file-in-a-folder convention for both."""
+    image_dir = os.path.join(assets_dir, folder)
+    if not os.path.isdir(image_dir):
         return None
 
-    for filename in sorted(os.listdir(start_dir)):
+    for filename in sorted(os.listdir(image_dir)):
         if filename.lower().endswith(_START_IMAGE_EXTENSIONS):
-            return os.path.join(start_dir, filename)
+            return os.path.join(image_dir, filename)
     return None
+
+
+def get_start_image(assets_dir):
+    """Return the path to the single start-screen image in assets/start/,
+    shown on first launch, or None if it hasn't been added yet."""
+    return _get_single_image(assets_dir, "start")
+
+
+def get_aftersent_image(assets_dir):
+    """Return the path to the single post-send-screen image in
+    assets/aftersent/, shown after a composition has been emailed, or None
+    if it hasn't been added yet (in which case the start image is reused)."""
+    return _get_single_image(assets_dir, "aftersent")

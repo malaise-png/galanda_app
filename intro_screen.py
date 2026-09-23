@@ -6,12 +6,11 @@
 #   - Again after a finished composition has been emailed (see
 #     GalandaApp.confirm_send in main.py).
 #
-# Both are the same widget: a centered image (the single PNG in
-# assets/start/, loaded the same way category picker options are) with one
-# big flat button underneath. The button's icon, label, AND layout all
-# differ between the two states -- start.png centered above "START" the
-# first time, back.png to the left of "Nová kompozícia" after a send --
-# tracked by AppState.intro_button_key and kept in sync here.
+# Both are the same widget: a centered image with one big flat button
+# underneath. The image (assets/start/ the first time, assets/aftersent/
+# after a send) and the button's icon, label, AND layout all differ between
+# the two states -- tracked by AppState.intro_button_key and kept in sync
+# here.
 
 import os
 
@@ -115,33 +114,17 @@ class IntroScreen(BoxLayout):
         super().__init__(**kwargs)
 
         state = App.get_running_app().state
-        start_image_path = image_assets.get_start_image(state.assets_dir)
 
-        if start_image_path is not None:
-            # Image plays multi-frame GIFs automatically (default
-            # anim_delay=0.25s/frame) -- no extra code needed for that.
-            self.image = Image(
-                source=start_image_path,
-                allow_stretch=True,
-                keep_ratio=True,
-                size_hint=(theme.INTRO_IMAGE_SCALE, theme.INTRO_IMAGE_SCALE),
-            )
-        else:
-            # No start image dropped in yet -- show a placeholder message
-            # instead of a blank gap, so it's obvious what's missing.
-            self.image = Label(
-                font_size=theme.FONT_SIZE_NORMAL,
-                **theme.font_kwargs(),
-                color=theme.TEXT_COLOR,
-                size_hint=(1, 1),
-            )
-            App.get_running_app().register_i18n(self.image, "start_image_missing")
         # The image is smaller than its slot (see theme.INTRO_IMAGE_SCALE),
         # and a BoxLayout would pin it to a corner, so it's centered in the
-        # slot by an AnchorLayout.
-        image_slot = AnchorLayout(anchor_x="center", anchor_y="center", size_hint=(1, 1))
-        image_slot.add_widget(self.image)
-        self.add_widget(image_slot)
+        # slot by an AnchorLayout. Its content (self.image) is swapped by
+        # _refresh_image() below as intro_button_key changes.
+        self.image_slot = AnchorLayout(anchor_x="center", anchor_y="center", size_hint=(1, 1))
+        self.add_widget(self.image_slot)
+        self.image = None
+        self._current_image_key = None
+        state.bind(intro_button_key=self._refresh_image)
+        self._refresh_image()
 
         # Only shown after a successful send (intro_button_key ==
         # "new_session_button"), not on the very first launch -- empty text
@@ -164,6 +147,41 @@ class IntroScreen(BoxLayout):
         # register_i18n() helper -- kept in sync manually here instead.
         state.bind(current_language=self._refresh_button, intro_button_key=self._refresh_button)
         self._refresh_button()
+
+    def _refresh_image(self, *_args):
+        state = App.get_running_app().state
+        if state.intro_button_key == self._current_image_key:
+            return
+        self._current_image_key = state.intro_button_key
+
+        if state.intro_button_key == "new_session_button":
+            image_path = image_assets.get_aftersent_image(state.assets_dir)
+            missing_key = "aftersent_image_missing"
+        else:
+            image_path = image_assets.get_start_image(state.assets_dir)
+            missing_key = "start_image_missing"
+
+        self.image_slot.clear_widgets()
+        if image_path is not None:
+            # Image plays multi-frame GIFs automatically (default
+            # anim_delay=0.25s/frame) -- no extra code needed for that.
+            self.image = Image(
+                source=image_path,
+                allow_stretch=True,
+                keep_ratio=True,
+                size_hint=(theme.INTRO_IMAGE_SCALE, theme.INTRO_IMAGE_SCALE),
+            )
+        else:
+            # No image dropped in yet for this state -- show a placeholder
+            # message instead of a blank gap, so it's obvious what's missing.
+            self.image = Label(
+                font_size=theme.FONT_SIZE_NORMAL,
+                **theme.font_kwargs(),
+                color=theme.TEXT_COLOR,
+                size_hint=(1, 1),
+            )
+            App.get_running_app().register_i18n(self.image, missing_key)
+        self.image_slot.add_widget(self.image)
 
     def _refresh_button(self, *_args):
         state = App.get_running_app().state

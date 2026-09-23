@@ -324,7 +324,15 @@ class GalandaApp(App):
         # not the side panels/bars around it.
         self.state.canvas_area.export_to_png(filepath)
 
-        email_sender.send_image(email_address, filepath)
+        try:
+            email_sender.send_image(email_address, filepath)
+        finally:
+            # The exported PNG is only ever a means to email it -- nothing
+            # else reads it afterwards, so it shouldn't pile up on the Pi's
+            # disk across kiosk sessions. Removed even on a failed send: the
+            # bar stays open and confirm_send() re-exports a fresh file on
+            # retry, so there's nothing to keep this one around for.
+            os.remove(filepath)
 
         self.state.close_send_bar()
         # In case the tutorial dropdown or a category picker was left open
