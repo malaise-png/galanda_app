@@ -491,7 +491,11 @@ class CategoryPickerPanel(BoxLayout):
 
         self._row.clear_widgets()
         for _name, path in assets:
-            thumb = AssetThumbnailButton(path=path)
+            # The thumbnail (small, pre-scaled -- see get_category_
+            # thumbnail()) is only for display here; placing this option
+            # still uses the original full-resolution `path` below.
+            thumbnail_path = image_assets.get_category_thumbnail(state.assets_dir, category, path)
+            thumb = AssetThumbnailButton(path=thumbnail_path)
             thumb.bind(
                 on_press=lambda *_args, p=path: App.get_running_app().state.select_category_option(category, p)
             )

@@ -7,9 +7,27 @@
 # order by filename. There's no manifest or registration step: adding or
 # removing artwork is just adding or removing files in that folder.
 
+import logging
 import os
 
+from PIL import Image as PILImage
+
+import theme
+
+# Pillow's PNG decoder logs at DEBUG (one line per chunk -- IHDR, IDAT,
+# ...), which otherwise floods the console/journalctl with binary-chunk
+# noise every time get_category_thumbnail() below decodes a source image,
+# since Kivy's own logging setup ends up routing even DEBUG-level messages
+# from other loggers through to the console.
+logging.getLogger("PIL").setLevel(logging.WARNING)
+
 _IMAGE_EXTENSIONS = (".png",)
+
+# Where pre-generated category-picker thumbnails (see get_category_
+# thumbnail() below) are cached, as assets_dir/.thumbnails/<category>/
+# <filename> -- a dot-prefixed sibling of the category folders themselves,
+# so it's never picked up by get_category_assets()'s own directory listing.
+_THUMBNAIL_CACHE_DIR_NAME = ".thumbnails"
 
 # The start/end-screen image (see get_start_image()) can be an animated GIF
 # -- Kivy's Image widget plays multi-frame GIFs automatically -- or a plain
@@ -32,6 +50,45 @@ def get_category_assets(assets_dir, category):
             name = os.path.splitext(filename)[0]
             assets.append((name, os.path.join(category_dir, filename)))
     return assets
+
+
+def get_category_thumbnail(assets_dir, category, image_path):
+    """Return the path to a small, pre-scaled copy of image_path (down to
+    theme.CATEGORY_THUMBNAIL_SIZE) for the category picker to display,
+    generating and caching it first if it doesn't exist yet or the source
+    file has changed since.
+
+    The source artwork in assets/<category>/ is full-resolution (easily
+    1000-1600px, several MB each -- see deploy/README.md's touch notes for
+    how underpowered the Pi's CPU is by comparison) but only ever shown at
+    CATEGORY_THUMBNAIL_SIZE in the picker (see AssetThumbnailButton in
+    menu_widgets.py). Decoding all of a category's full-size PNGs on the UI
+    thread every time it's opened is what caused the picker's noticeable
+    delay -- this makes that a one-time cost per asset instead of a
+    every-open one. Placing a picked option on the canvas still uses the
+    original full-resolution image_path, not this thumbnail."""
+    cache_dir = os.path.join(assets_dir, _THUMBNAIL_CACHE_DIR_NAME, category)
+    thumbnail_path = os.path.join(cache_dir, os.path.basename(image_path))
+
+    if os.path.exists(thumbnail_path) and os.path.getmtime(thumbnail_path) >= os.path.getmtime(image_path):
+        return thumbnail_path
+
+    os.makedirs(cache_dir, exist_ok=True)
+    with PILImage.open(image_path) as source:
+        source = source.convert("RGBA")
+        source.thumbnail(theme.CATEGORY_THUMBNAIL_SIZE, PILImage.LANCZOS)
+        source.save(thumbnail_path)
+    return thumbnail_path
+
+
+def pregenerate_thumbnails(assets_dir):
+    """Generate (or refresh, if the source artwork changed) every
+    category's thumbnails up front -- called on a background thread at app
+    startup (see main.py) so the picker's first open per category doesn't
+    pay get_category_thumbnail()'s one-time generation cost either."""
+    for category in theme.CATEGORIES:
+        for _name, path in get_category_assets(assets_dir, category):
+            get_category_thumbnail(assets_dir, category, path)
 
 
 def get_canvas_texture(assets_dir):

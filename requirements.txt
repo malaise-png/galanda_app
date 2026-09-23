@@ -4,3 +4,8 @@
 # for `kivy[base]`.
 
 kivy[base]==2.3.1
+# Used to pre-generate small on-disk thumbnails for the category picker
+# (see image_assets.py) -- without this, opening a category decodes every
+# full-resolution artwork PNG on the UI thread, which is what caused the
+# picker's noticeable open delay.
+pillow

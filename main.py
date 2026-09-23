@@ -124,6 +124,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.scatter import Scatter
 
 import email_sender
+import image_assets
 import translations
 from app_state import AppState
 from canvas_widgets import CanvasArea
@@ -158,6 +159,15 @@ class GalandaApp(App):
         # register_i18n()/refresh_all_text() below.
         self.i18n_registry = []
         self.state.bind(current_language=self.refresh_all_text)
+
+        # Pre-generates (or refreshes, if the source artwork changed) every
+        # category's picker thumbnails on a background thread -- pure
+        # file/Pillow work, no Kivy widgets touched, so it's safe off the
+        # UI thread. Started here so it's very likely done before the user
+        # even reaches the compose screen; get_category_thumbnail() in
+        # menu_widgets.py's show_category() still generates on demand as a
+        # fallback for anything not yet ready.
+        threading.Thread(target=image_assets.pregenerate_thumbnails, args=(ASSETS_DIR,), daemon=True).start()
 
         # `content` is always laid out at the exact kiosk resolution
         # (theme.SCREEN_WIDTH x SCREEN_HEIGHT), regardless of the actual

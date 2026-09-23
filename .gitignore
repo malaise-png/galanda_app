@@ -6,6 +6,10 @@ __pycache__/
 exports/*
 !exports/.gitkeep
 
+# Pre-generated category-picker thumbnails -- regenerated on demand from
+# the real artwork (see image_assets.py), not source themselves.
+assets/.thumbnails/
+
 # Claude Code local settings -- machine-specific, not project content.
 .claude/
 
