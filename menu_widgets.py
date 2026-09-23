@@ -22,6 +22,7 @@ import os
 import re
 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.graphics import Color, Line, Rectangle
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.behaviors import ButtonBehavior
@@ -34,7 +35,6 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 
-import email_sender
 import image_assets
 import theme
 import translations
@@ -683,11 +683,52 @@ class EmailSendBar(BoxLayout):
         if not _EMAIL_RE.match(address):
             self._set_error("email_invalid")
             return
-        try:
-            App.get_running_app().confirm_send(address)
-        except email_sender.EmailSendError as error:
-            self._error_label.text = str(error)
+        self._error_label.text = ""
+        state = App.get_running_app().state
+        state.sending = True
+        # Deferred to the next frame so the SENDING/POSIELAM overlay (see
+        # AppState.sending) actually gets drawn before confirm_send()
+        # exports the canvas (a moment of GL work) right after. The actual
+        # emailing runs on a background thread (see confirm_send() in
+        # main.py) rather than blocking here, so this call returns almost
+        # immediately -- _finish_send() in main.py reports success/failure
+        # once that thread completes, via show_send_error() below.
+        Clock.schedule_once(lambda _dt: App.get_running_app().confirm_send(address))
+
+    def show_send_error(self, message):
+        """Called by GalandaApp._finish_send() once the background send
+        thread (see confirm_send() in main.py) reports failure -- the bar
+        stays open so the user can fix the address or just retry."""
+        self._error_label.text = message
 
     def _set_error(self, text_key):
         state = App.get_running_app().state
         self._error_label.text = translations.get_text(state.current_language, text_key)
+
+
+class SendingOverlay(AnchorLayout):
+    """Full-screen overlay with a centered SENDING/POSIELAM label, shown
+    while AppState.sending is True -- set by EmailSendBar._confirm() above
+    and cleared by GalandaApp._finish_send() in main.py once the
+    background email-sending thread (see confirm_send() in main.py)
+    completes, a few seconds later. Swallows every touch so nothing
+    underneath can be tapped while a send is in progress."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("anchor_x", "center")
+        kwargs.setdefault("anchor_y", "center")
+        kwargs.setdefault("size_hint", (1, 1))
+        super().__init__(**kwargs)
+        _add_flat_background(self, theme.PANEL_BACKGROUND_COLOR)
+
+        self._label = Label(
+            font_size=theme.FONT_SIZE_LARGE,
+            **theme.font_kwargs(),
+            color=theme.ACCENT_COLOR,
+        )
+        App.get_running_app().register_i18n(self._label, "sending")
+        self.add_widget(self._label)
+
+    def on_touch_down(self, touch):
+        super().on_touch_down(touch)
+        return True

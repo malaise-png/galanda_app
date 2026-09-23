@@ -38,6 +38,13 @@ class AppState(EventDispatcher):
     # Whether the floating email-entry bar (opened by POSLAŤ) is showing.
     email_bar_open = BooleanProperty(False)
 
+    # True while the background email-sending thread (see confirm_send()
+    # in main.py) is in flight -- a few seconds. See SendingOverlay in
+    # menu_widgets.py, shown while this is True; set by
+    # EmailSendBar._confirm() and cleared by GalandaApp._finish_send() in
+    # main.py once that thread completes.
+    sending = BooleanProperty(False)
+
     # Which category's picker panel is currently open ("" = none open).
     open_category = StringProperty("")
 

@@ -10,6 +10,7 @@
 # in this file without keeping that in mind.
 
 import os
+import threading
 
 from kivy.config import Config
 
@@ -127,7 +128,15 @@ import translations
 from app_state import AppState
 from canvas_widgets import CanvasArea
 from intro_screen import IntroScreen
-from menu_widgets import BottomBar, CategoryBar, CategoryPickerPanel, EmailSendBar, TopBar, TutorialPanel
+from menu_widgets import (
+    BottomBar,
+    CategoryBar,
+    CategoryPickerPanel,
+    EmailSendBar,
+    SendingOverlay,
+    TopBar,
+    TutorialPanel,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(BASE_DIR, theme.ASSETS_DIR_NAME)
@@ -216,6 +225,12 @@ class GalandaApp(App):
         self.email_send_bar.pos_hint = {"x": 0}
         self.email_send_bar.y = 0
         self.state.bind(email_bar_open=self._refresh_email_bar)
+
+        # The SENDING/POSIELAM overlay -- added last (see _refresh_sending),
+        # so it always ends up on top of the email bar it's shown over.
+        self.sending_overlay = SendingOverlay()
+        self.state.bind(sending=self._refresh_sending)
+        self._refresh_sending()
 
         # Auto-reset to the start screen after theme.IDLE_TIMEOUT_SECONDS of
         # no touch input anywhere -- bound at the Window level (not on
@@ -356,14 +371,29 @@ class GalandaApp(App):
         elif self.email_send_bar.parent is not None:
             self.root_layout.remove_widget(self.email_send_bar)
 
+    def _refresh_sending(self, *_args):
+        if self.state.sending:
+            if self.sending_overlay.parent is None:
+                self.root_layout.add_widget(self.sending_overlay)
+        elif self.sending_overlay.parent is not None:
+            self.root_layout.remove_widget(self.sending_overlay)
+
     def confirm_send(self, email_address):
         """Called by EmailSendBar once a validated email address is
-        confirmed: exports the current canvas as a timestamped PNG, emails
-        it to that address, then shows the intro screen again with the
-        Nová kompozícia button. Raises email_sender.EmailSendError (which
-        EmailSendBar catches and displays) if sending fails -- the bar
-        stays open either way, so the composition itself is untouched
-        until a send actually succeeds."""
+        confirmed (AppState.sending is already True by this point, showing
+        the SENDING/POSIELAM overlay): exports the current canvas as a
+        timestamped PNG, then hands the actual emailing off to a background
+        thread -- see _send_in_background() below.
+
+        The SMTP call (a few seconds) must NOT run on this, the UI thread:
+        doing so used to freeze Kivy's event loop for that whole stretch,
+        during which any tap (e.g. an impatient re-tap while it said
+        SENDING) got queued at the OS level and was only delivered once the
+        freeze ended -- landing, stale, on whatever the screen had just
+        switched to (the aftersent screen's New composition button),
+        firing it immediately and jumping straight into a new composition.
+        _finish_send() below, scheduled back onto this thread once the
+        background thread completes, does the actual screen switch."""
         import datetime
 
         # Deselecting first hides the selection highlight and the X delete
@@ -377,18 +407,36 @@ class GalandaApp(App):
         filepath = os.path.join(EXPORT_DIR, filename)
         # export_to_png is called on the canvas widget specifically (not the
         # whole window), so the exported image contains only the picture,
-        # not the side panels/bars around it.
+        # not the side panels/bars around it. This is local GL/file work,
+        # not network I/O, so it's fine to keep on the UI thread.
         self.state.canvas_area.export_to_png(filepath)
 
-        try:
-            email_sender.send_image(email_address, filepath)
-        finally:
-            # The exported PNG is only ever a means to email it -- nothing
-            # else reads it afterwards, so it shouldn't pile up on the Pi's
-            # disk across kiosk sessions. Removed even on a failed send: the
-            # bar stays open and confirm_send() re-exports a fresh file on
-            # retry, so there's nothing to keep this one around for.
-            os.remove(filepath)
+        def _send_in_background():
+            error = None
+            try:
+                email_sender.send_image(email_address, filepath)
+            except email_sender.EmailSendError as caught:
+                error = caught
+            finally:
+                # The exported PNG is only ever a means to email it --
+                # nothing else reads it afterwards, so it shouldn't pile up
+                # on the Pi's disk across kiosk sessions. Removed even on a
+                # failed send: the bar stays open and confirm_send()
+                # re-exports a fresh file on retry, so there's nothing to
+                # keep this one around for.
+                os.remove(filepath)
+            # Clock.schedule_once is thread-safe to call from a background
+            # thread (unlike touching widgets/properties directly here) --
+            # it marshals _finish_send() back onto the main thread.
+            Clock.schedule_once(lambda _dt: self._finish_send(error))
+
+        threading.Thread(target=_send_in_background, daemon=True).start()
+
+    def _finish_send(self, error):
+        self.state.sending = False
+        if error is not None:
+            self.email_send_bar.show_send_error(str(error))
+            return
 
         self.state.close_send_bar()
         # In case the tutorial dropdown or a category picker was left open

@@ -39,6 +39,7 @@ TEXT = {
         "email_bar_label": "ENTER YOUR EMAIL ADDRESS:",
         "email_bar_cancel": "CANCEL",
         "email_invalid": "PLEASE ENTER A VALID EMAIL ADRESS",
+        "sending": "SENDING",
     },
     "sk": {
         "tutorial_button": "INFO",
@@ -68,6 +69,7 @@ TEXT = {
         "email_bar_label": "ZADAJ SVOJU EMAILOVÚ ADRESU:",
         "email_bar_cancel": "ZRUŠIŤ",
         "email_invalid": "ZADAJ PLATNÚ EMAILOVÚ ADRESU",
+        "sending": "POSIELAM",
     },
 }
 
