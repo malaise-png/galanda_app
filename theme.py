@@ -75,6 +75,13 @@ TOUCH_JITTER_DISTANCE = 0
 # there's plenty of margin before this could reject an intentional gesture.
 GHOST_TOUCH_MIN_SEPARATION = 50
 
+# Seconds of no touch input anywhere before the kiosk auto-resets to the
+# very first start screen -- see GalandaApp's idle timer in main.py and
+# AppState.reset_to_start(). Abandons an in-progress composition, or a
+# finished one left sitting on the post-send "Nová kompozícia" screen, so
+# the kiosk doesn't stay stuck mid-session for the next visitor.
+IDLE_TIMEOUT_SECONDS = 20
+
 # See _PaddedButton in menu_widgets.py -- how far (in pixels, at kiosk
 # resolution) a flat text button's tappable area extends past its visible
 # text on every side. These buttons are sized to hug just their own text

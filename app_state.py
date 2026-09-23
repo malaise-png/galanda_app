@@ -90,6 +90,16 @@ class AppState(EventDispatcher):
         self.new_session()
         self.screen = "compose"
 
+    def reset_to_start(self):
+        """Called by GalandaApp's idle timer (see theme.IDLE_TIMEOUT_SECONDS
+        in main.py) after a stretch of no touch input: abandons whatever's
+        in progress -- mid-composition, or a finished one left sitting on
+        the post-send screen -- and returns to the very first screen, as if
+        freshly launched."""
+        self.new_session()
+        self.intro_button_key = "start_button"
+        self.screen = "intro"
+
     def open_send_bar(self):
         self.email_bar_open = True
 

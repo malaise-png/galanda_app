@@ -114,6 +114,7 @@ Config.set("kivy", "exit_on_escape", "0")
 # --- Only safe to import kivy.app / kivy.core.window / kivy.uix.* below ---
 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.uix.boxlayout import BoxLayout
@@ -208,6 +209,15 @@ class GalandaApp(App):
         self.email_send_bar.y = 0
         self.state.bind(email_bar_open=self._refresh_email_bar)
 
+        # Auto-reset to the start screen after theme.IDLE_TIMEOUT_SECONDS of
+        # no touch input anywhere -- bound at the Window level (not on
+        # `content` or its children) so it fires regardless of which widget,
+        # if any, ends up handling a given touch. Covers both the start and
+        # end of a gesture: on_touch_down alone would let a single drag
+        # longer than the timeout reset the app mid-gesture.
+        self._idle_event = Clock.schedule_once(self._on_idle_timeout, theme.IDLE_TIMEOUT_SECONDS)
+        Window.bind(on_touch_down=self._reset_idle_timer, on_touch_up=self._reset_idle_timer)
+
         # -- scale `content` to fit whatever window it actually ends up in --
         scaler = Scatter(
             size=(theme.SCREEN_WIDTH, theme.SCREEN_HEIGHT),
@@ -238,6 +248,19 @@ class GalandaApp(App):
     def _update_background_rect(self, instance, _value):
         self._background_rect.pos = instance.pos
         self._background_rect.size = instance.size
+
+    # -- idle timeout -------------------------------------------------------
+
+    def _reset_idle_timer(self, *_args):
+        self._idle_event.cancel()
+        self._idle_event = Clock.schedule_once(self._on_idle_timeout, theme.IDLE_TIMEOUT_SECONDS)
+
+    def _on_idle_timeout(self, *_args):
+        # Skip the reset if already sitting at the very first screen --
+        # nothing to abandon, and avoids a needless new_session() call every
+        # theme.IDLE_TIMEOUT_SECONDS while the kiosk just sits idle.
+        if self.state.screen != "intro" or self.state.intro_button_key != "start_button":
+            self.state.reset_to_start()
 
     # -- language / translation --------------------------------------------
 
