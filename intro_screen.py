@@ -27,12 +27,14 @@ import image_assets
 import theme
 import translations
 
-# intro_button_key -> (icon filename under theme.ICON_DIR, stacked?) for
-# that state. "stacked" = icon centered above the label (start screen);
-# not stacked = icon to the left of the label (end screen, after a send).
+# intro_button_key -> (icon filename under theme.ICON_DIR, stacked?, icon
+# size) for that state. "stacked" = icon centered above the label (start
+# screen); not stacked = icon to the left of the label (end screen, after a
+# send) -- same new.png/size the bottom bar's New composition button uses
+# there, so it doesn't look oversized next to this smaller label.
 _BUTTON_CONFIG = {
-    "start_button": ("start.png", True),
-    "new_session_button": ("back.png", False),
+    "start_button": ("start.png", True, theme.INTRO_BUTTON_ICON_SIZE),
+    "new_session_button": ("new.png", False, theme.BUTTON_ICON_SIZE),
 }
 
 
@@ -166,8 +168,9 @@ class IntroScreen(BoxLayout):
     def _refresh_button(self, *_args):
         state = App.get_running_app().state
         self.button.label.text = translations.get_text(state.current_language, state.intro_button_key)
-        icon_name, stacked = _BUTTON_CONFIG[state.intro_button_key]
+        icon_name, stacked, icon_size = _BUTTON_CONFIG[state.intro_button_key]
         self.button.icon.source = os.path.join(theme.ICON_DIR, icon_name)
+        self.button.icon.size = icon_size
         self.button.set_stacked(stacked)
 
         if state.intro_button_key == "new_session_button":
