@@ -15,7 +15,7 @@ TEXT = {
         # Placeholder tutorial body -- replace this with the real instructions
         # whenever they're ready. Use \n\n for a paragraph break.
         "tutorial_body": (
-            "Hi, welcome! \n\n"
+            "Hi, welcome, \n\n"
             "Create your own artwork inspired by the paintings of Mikuláš Galanda. "
             "First, choose a background, and then gradually add the body, arms, "
             "head, eyes, or various objects.You can move, rotate, "
@@ -31,6 +31,7 @@ TEXT = {
         "category_empty": "No images yet",
         "undo_button": "BACK",
         "new_session_button": "NEW COMPOSITION",
+        "sent_success": "Awesome, sent!",
         "export_button": "SEND",
         "start_button": "START",
         "start_image_missing": "Add a start image",
@@ -43,7 +44,7 @@ TEXT = {
         # Placeholder text -- rovnaký text ako v angličtine, len preložený.
         # Nahraď skutočným návodom, keď bude pripravený.
         "tutorial_body": (
-            "Ahoj, vitaj! \n\n"
+            "Ahoj, vitaj, \n\n"
             "Vytvor si vlastné dielo inšpirované obrazmi Mikuláša Galandu. "
             "Najskôr si vyber pozadie a potom postupne pridávaj telo, ruky, "
             "hlavu, oči alebo rôzne predmety. Jednotlivé časti môžeš presúvať, "
@@ -58,6 +59,7 @@ TEXT = {
         "category_empty": "Zatiaľ žiadne obrázky",
         "undo_button": "SPÄŤ",
         "new_session_button": "NOVÁ KOMPOZÍCIA",
+        "sent_success": "Super, poslané!",
         "export_button": "POSLAŤ",
         "start_button": "ŠTART",
         "start_image_missing": "Pridaj úvodný obrázok",

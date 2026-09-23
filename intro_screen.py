@@ -141,6 +141,19 @@ class IntroScreen(BoxLayout):
         image_slot.add_widget(self.image)
         self.add_widget(image_slot)
 
+        # Only shown after a successful send (intro_button_key ==
+        # "new_session_button"), not on the very first launch -- empty text
+        # collapses it to zero height so it doesn't leave a gap on the
+        # start screen.
+        self.success_label = Label(
+            font_size=theme.FONT_SIZE_LARGE,
+            **theme.font_kwargs(),
+            color=theme.ACCENT_COLOR,
+            size_hint=(1, None),
+        )
+        self.success_label.bind(texture_size=lambda _w, size: setattr(self.success_label, "height", size[1]))
+        self.add_widget(self.success_label)
+
         self.button = _IntroButton(on_press=state.start_composition)
         self.add_widget(self.button)
 
@@ -156,3 +169,8 @@ class IntroScreen(BoxLayout):
         icon_name, stacked = _BUTTON_CONFIG[state.intro_button_key]
         self.button.icon.source = os.path.join(theme.ICON_DIR, icon_name)
         self.button.set_stacked(stacked)
+
+        if state.intro_button_key == "new_session_button":
+            self.success_label.text = translations.get_text(state.current_language, "sent_success")
+        else:
+            self.success_label.text = ""
