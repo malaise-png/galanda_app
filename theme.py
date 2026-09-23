@@ -80,7 +80,7 @@ GHOST_TOUCH_MIN_SEPARATION = 50
 # AppState.reset_to_start(). Abandons an in-progress composition, or a
 # finished one left sitting on the post-send "Nová kompozícia" screen, so
 # the kiosk doesn't stay stuck mid-session for the next visitor.
-IDLE_TIMEOUT_SECONDS = 20
+IDLE_TIMEOUT_SECONDS = 60
 
 # See _PaddedButton in menu_widgets.py -- how far (in pixels, at kiosk
 # resolution) a flat text button's tappable area extends past its visible
@@ -232,8 +232,11 @@ EXPORT_DIR_NAME = "exports"
 IMAGE_INITIAL_SIZE = (300, 300)
 
 # How far a placed image can be pinch-resized, as a multiplier of its
-# initial size.
-IMAGE_SCALE_MIN = 0.3
+# initial size. The old 0.3 let the longer side of IMAGE_INITIAL_SIZE
+# shrink down to 90px -- IMAGE_SCALE_MIN is set 60px above that floor
+# (150 / 300), so the smallest a resized image can get is now larger, not
+# smaller, than before.
+IMAGE_SCALE_MIN = 150 / IMAGE_INITIAL_SIZE[0]
 IMAGE_SCALE_MAX = 3.0
 
 # The round "X" delete badge shown at the top-right corner of a selected

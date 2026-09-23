@@ -93,15 +93,9 @@ class AppState(EventDispatcher):
     def start_composition(self):
         """Called by the intro screen's button -- START on first launch, or
         Nová kompozícia after a sent composition. Always resets to a blank
-        canvas before switching to the compose screen. Pressing START
-        specifically also opens the info/tutorial dropdown, so first-time
-        visitors see it right away without needing to tap Info themselves;
-        Nová kompozícia doesn't, since by then they've already seen it."""
-        is_start_button = self.intro_button_key == "start_button"
+        canvas before switching to the compose screen."""
         self.new_session()
         self.screen = "compose"
-        if is_start_button:
-            self.tutorial_open = True
 
     def reset_to_start(self):
         """Called by GalandaApp's idle timer (see theme.IDLE_TIMEOUT_SECONDS
