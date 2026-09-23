@@ -165,12 +165,15 @@ class GalandaApp(App):
         canvas_holder.add_widget(canvas_area)
 
         # -- top bar / category bar / canvas / bottom bar, stacked -----------
-        top_bar = TopBar()
+        # top_bar is kept on self (unlike category_bar/bottom_bar) so
+        # _maybe_close_tutorial below can check touches against its Info
+        # button specifically.
+        self.top_bar = TopBar()
         category_bar = CategoryBar()
         bottom_bar = BottomBar()
 
         self.compose_screen = BoxLayout(orientation="vertical", size_hint=(1, 1))
-        self.compose_screen.add_widget(top_bar)
+        self.compose_screen.add_widget(self.top_bar)
         self.compose_screen.add_widget(category_bar)
         self.compose_screen.add_widget(canvas_holder)
         self.compose_screen.add_widget(bottom_bar)
@@ -218,6 +221,18 @@ class GalandaApp(App):
         self._idle_event = Clock.schedule_once(self._on_idle_timeout, theme.IDLE_TIMEOUT_SECONDS)
         Window.bind(on_touch_down=self._reset_idle_timer, on_touch_up=self._reset_idle_timer)
 
+        # Closes the info/tutorial dropdown on a tap anywhere else on the
+        # screen -- bound at the Window level (like the idle timer above)
+        # so it fires no matter what's underneath the touch, rather than
+        # every widget that might be tapped needing its own
+        # close_tutorial() call. Excludes the Info button itself (its own
+        # on_press already toggles tutorial_open -- closing it here first
+        # would have that toggle immediately reopen it) and the dropdown
+        # itself (TutorialPanel.on_touch_down already closes it on a tap
+        # there, while still swallowing the touch so it doesn't also reach
+        # the category bar/canvas it's covering).
+        Window.bind(on_touch_down=self._maybe_close_tutorial)
+
         # -- scale `content` to fit whatever window it actually ends up in --
         scaler = Scatter(
             size=(theme.SCREEN_WIDTH, theme.SCREEN_HEIGHT),
@@ -261,6 +276,19 @@ class GalandaApp(App):
         # theme.IDLE_TIMEOUT_SECONDS while the kiosk just sits idle.
         if self.state.screen != "intro" or self.state.intro_button_key != "start_button":
             self.state.reset_to_start()
+
+    def _maybe_close_tutorial(self, _window, touch):
+        if not self.state.tutorial_open:
+            return
+        # touch.pos is in raw window coordinates; to_widget() converts it
+        # into each widget's own coordinate space, accounting for the
+        # scaler Scatter's scale/translation (a no-op on the real kiosk,
+        # where the window already matches SCREEN_WIDTH x SCREEN_HEIGHT,
+        # but not in DEV_MODE's resized window).
+        for widget in (self.top_bar.tutorial_button, self.tutorial_panel):
+            if widget.collide_point(*widget.to_widget(*touch.pos)):
+                return
+        self.state.close_tutorial()
 
     # -- language / translation --------------------------------------------
 

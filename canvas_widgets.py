@@ -248,12 +248,6 @@ class CanvasArea(Widget):
             self._background_image_color.a = 1
 
     def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            # Any tap on the canvas -- whether it lands on an image or
-            # empty space -- closes the info/tutorial dropdown if it's
-            # open, since it's in the way of actually composing.
-            App.get_running_app().state.close_tutorial()
-
         # Let child images (drawn on top) have first go at the touch. Kivy's
         # default Widget.on_touch_down already does this for us and returns
         # a value telling us whether one of them grabbed it.

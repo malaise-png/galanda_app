@@ -299,9 +299,10 @@ class TutorialPanel(BoxLayout):
     actually ends up in translations.py (see body_label below), so nothing
     gets clipped no matter how long that text is.
 
-    Swallows any touch that lands within its own bounds (see
-    on_touch_down) so the category bar/canvas it's covering can't be
-    tapped through it while it's open."""
+    Any touch that lands within its own bounds (see on_touch_down) closes
+    it and is swallowed, rather than falling through to the category
+    bar/canvas it's covering -- a tap anywhere else on screen also closes
+    it, via GalandaApp._maybe_close_tutorial in main.py."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("orientation", "vertical")
@@ -347,7 +348,10 @@ class TutorialPanel(BoxLayout):
         # behind it (the category bar, mainly) instead of being swallowed
         # by the dropdown that's covering it.
         handled = super().on_touch_down(touch)
-        return handled or self.collide_point(*touch.pos)
+        if not (handled or self.collide_point(*touch.pos)):
+            return False
+        App.get_running_app().state.close_tutorial()
+        return True
 
 
 # ---------------------------------------------------------------------------
