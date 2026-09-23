@@ -168,7 +168,15 @@ CANVAS_HEIGHT = 1016
 # added. Whatever POZADIE image the user then picks is placed on top of
 # that, inset by this many pixels on every side -- smaller than the canvas
 # itself -- so the paper-like texture stays visible as a border around it.
-POZADIE_INSET = 60
+POZADIE_INSET = 100
+
+# Font size and bottom margin (in pixels, at kiosk resolution) for the
+# gallery credit line stamped along the bottom of the canvas -- see
+# CanvasArea's _credit_label in canvas_widgets.py. Sized to fit within the
+# POZADIE_INSET border below a placed background image, not the small
+# INTRO_BUTTON_FONT_SIZE-style categories used elsewhere.
+CANVAS_CREDIT_FONT_SIZE = "28sp"
+CANVAS_CREDIT_MARGIN = 16
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -180,6 +188,12 @@ PANEL_BORDER_COLOR = (43/255, 40/255, 41/255, 1)      # thin separator lines
 
 TEXT_COLOR = (1, 1, 1, 1)                       # default text: white
 ACCENT_COLOR = (1, 1, 1, 1)            # buttons / highlights: warm gold
+
+# The canvas credit line (see CanvasArea in canvas_widgets.py) sits on the
+# light, paper-colored canvas texture, not the app's own dark background --
+# TEXT_COLOR's white would be nearly invisible there, so it reuses the same
+# dark tone as BACKGROUND_COLOR instead, like ink on paper.
+CANVAS_CREDIT_COLOR = BACKGROUND_COLOR
 
 # Dashed outline drawn around the currently-selected image.
 SELECTION_HIGHLIGHT_COLOR = ACCENT_COLOR
