@@ -33,7 +33,8 @@ def send_image(to_address, image_path):
         message.add_attachment(image_file.read(), maintype="image", subtype="png", filename="galanda.png")
 
     try:
-        with smtplib.SMTP_SSL(email_config.SMTP_HOST, email_config.SMTP_PORT) as smtp:
+        with smtplib.SMTP(email_config.SMTP_HOST, email_config.SMTP_PORT) as smtp:
+            smtp.starttls()
             smtp.login(email_config.SMTP_USERNAME, email_config.SMTP_PASSWORD)
             smtp.send_message(message)
     except (smtplib.SMTPException, OSError) as error:

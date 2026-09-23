@@ -10,14 +10,18 @@
 # confirming an email address will show a clear "not configured" error in
 # the app instead of crashing.
 #
-# For Gmail: SMTP_HOST = "smtp.gmail.com", SMTP_PORT = 465,
+# This connects with STARTTLS, which Brevo and Gmail both expect on port
+# 587 -- don't point SMTP_PORT at 465 (implicit-SSL port), it'll fail with
+# "ssl: wrong version number".
+#
+# For Gmail: SMTP_HOST = "smtp.gmail.com", SMTP_PORT = 587,
 # SMTP_USERNAME = your full Gmail address, and SMTP_PASSWORD must be a
 # 16-character *App Password* (Google Account -> Security -> 2-Step
 # Verification -> App Passwords) -- your normal Gmail password will NOT
-# work here. Other providers: use their SMTP-over-SSL host/port instead.
+# work here. Other providers: use their SMTP+STARTTLS host/port instead.
 
 SMTP_HOST = "smtp-relay.brevo.com"
-SMTP_PORT = 465
+SMTP_PORT = 587
 SMTP_USERNAME = "your-login@smtp-brevo.com"
 SMTP_PASSWORD = "your-smtp-api-key-here"
 
