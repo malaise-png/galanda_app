@@ -40,7 +40,7 @@ TEXT = {
         "email_bar_cancel": "CANCEL",
         "email_invalid": "PLEASE ENTER A VALID EMAIL ADRESS",
         "sending": "SENDING",
-        "canvas_credit": "TURČIANSKA GALÉRIA V MARTINE",
+        "canvas_credit": "turiec region gallery",
     },
     "sk": {
         "tutorial_button": "INFO",
@@ -71,7 +71,7 @@ TEXT = {
         "email_bar_cancel": "ZRUŠIŤ",
         "email_invalid": "ZADAJ PLATNÚ EMAILOVÚ ADRESU",
         "sending": "POSIELAM",
-        "canvas_credit": "TURČIANSKA GALÉRIA V MARTINE",
+        "canvas_credit": "turčianska galéria v martine",
     },
 }
 

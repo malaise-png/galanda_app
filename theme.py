@@ -172,10 +172,8 @@ POZADIE_INSET = 100
 
 # Font size and bottom margin (in pixels, at kiosk resolution) for the
 # gallery credit line stamped along the bottom of the canvas -- see
-# CanvasArea's _credit_label in canvas_widgets.py. Sized to fit within the
-# POZADIE_INSET border below a placed background image, not the small
-# INTRO_BUTTON_FONT_SIZE-style categories used elsewhere.
-CANVAS_CREDIT_FONT_SIZE = "28sp"
+# CanvasArea's _credit_label in canvas_widgets.py.
+CANVAS_CREDIT_FONT_SIZE = "18sp"
 CANVAS_CREDIT_MARGIN = 16
 
 # ---------------------------------------------------------------------------
