@@ -138,6 +138,11 @@ class GalandaApp(App):
 
     def build(self):
         self.title = "Galanda"
+        # This is a touch-only kiosk app -- no mouse pointer is ever needed
+        # (even in DEV_MODE, where the mouse only simulates touches; see
+        # Config.set("input", "mouse", ...) above), so the OS cursor arrow
+        # has no reason to be visible over it.
+        Window.show_cursor = False
 
         self.state = AppState(ASSETS_DIR)
         # (widget, translation_key, attribute_name) triples -- see
