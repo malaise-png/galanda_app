@@ -187,11 +187,9 @@ PANEL_BORDER_COLOR = (43/255, 40/255, 41/255, 1)      # thin separator lines
 TEXT_COLOR = (1, 1, 1, 1)                       # default text: white
 ACCENT_COLOR = (1, 1, 1, 1)            # buttons / highlights: warm gold
 
-# The canvas credit line (see CanvasArea in canvas_widgets.py) sits on the
-# light, paper-colored canvas texture, not the app's own dark background --
-# TEXT_COLOR's white would be nearly invisible there, so it reuses the same
-# dark tone as BACKGROUND_COLOR instead, like ink on paper.
-CANVAS_CREDIT_COLOR = BACKGROUND_COLOR
+# The canvas credit line (see CanvasArea in canvas_widgets.py) -- white,
+# same as TEXT_COLOR.
+CANVAS_CREDIT_COLOR = TEXT_COLOR
 
 # Dashed outline drawn around the currently-selected image.
 SELECTION_HIGHLIGHT_COLOR = ACCENT_COLOR

@@ -249,6 +249,18 @@ class CanvasArea(Widget):
         App.get_running_app().register_i18n(self._credit_label, "canvas_credit")
 
         with self.canvas.after:
+            # Kivy draws canvas.before, every child, then canvas.after as
+            # ONE continuous OpenGL command sequence -- a Color set anywhere
+            # in it stays in effect until something else changes it, it
+            # doesn't reset at these group boundaries. Without this Color
+            # here, _credit_rect inherited whatever alpha a DraggableImage's
+            # OWN trailing Color instruction (its selection-highlight, which
+            # sits at alpha 0 while deselected -- see _highlight_color_instr
+            # below) happened to leave the GL state at, making the credit
+            # line appear right after placing/selecting an image (alpha
+            # briefly 1) and vanish again once selection changed (alpha 0
+            # leftover from whichever image lost selection).
+            Color(rgba=(1, 1, 1, 1))
             self._credit_rect = Rectangle(texture=self._credit_label.texture, size=self._credit_label.texture_size)
         self._credit_label.bind(texture=self._update_credit_rect, texture_size=self._update_credit_rect)
 
