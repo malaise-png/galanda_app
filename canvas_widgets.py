@@ -198,18 +198,7 @@ class CanvasArea(Widget):
     added. Once a POZADIE image is picked, set_background_image() places it
     on top of that, inset by theme.POZADIE_INSET on every side so the
     canvas texture stays visible as a border around it. DraggableImage
-    instances are added to it as normal child widgets by AppState.
-
-    A gallery credit line is stamped along the bottom, inside the POZADIE
-    border -- see _credit_label/_credit_rect below. It's drawn via
-    canvas.after rather than as a normal child widget, specifically so it
-    always stays on top of every placed image: a child widget's front/back
-    order can be pushed around by DraggableImage's own auto_bring_to_front
-    (touching any image brings it to the front of the children, which
-    would cover a plain child-widget credit line), but canvas.after always
-    paints after ALL children, on every frame, regardless of their order.
-    It's still included in the exported/emailed composition, same as
-    everything else drawn on this widget."""
+    instances are added to it as normal child widgets by AppState."""
 
     def __init__(self, assets_dir, **kwargs):
         kwargs.setdefault("size_hint", (None, None))
@@ -236,34 +225,6 @@ class CanvasArea(Widget):
             self._background_image_color = Color(rgba=(1, 1, 1, 0))
             self._background_image_rect = Rectangle()
 
-        # Not added as a child widget (see class docstring) -- just used to
-        # render text to a texture, which _credit_rect below displays.
-        # Kivy keeps a Label's texture up to date from its text/font_size/
-        # color properties whether or not it's actually mounted in a
-        # widget tree, so this works the same as a normal on-screen Label.
-        self._credit_label = Label(
-            font_size=theme.CANVAS_CREDIT_FONT_SIZE,
-            **theme.font_kwargs(),
-            color=theme.CANVAS_CREDIT_COLOR,
-        )
-        App.get_running_app().register_i18n(self._credit_label, "canvas_credit")
-
-        with self.canvas.after:
-            # Kivy draws canvas.before, every child, then canvas.after as
-            # ONE continuous OpenGL command sequence -- a Color set anywhere
-            # in it stays in effect until something else changes it, it
-            # doesn't reset at these group boundaries. Without this Color
-            # here, _credit_rect inherited whatever alpha a DraggableImage's
-            # OWN trailing Color instruction (its selection-highlight, which
-            # sits at alpha 0 while deselected -- see _highlight_color_instr
-            # below) happened to leave the GL state at, making the credit
-            # line appear right after placing/selecting an image (alpha
-            # briefly 1) and vanish again once selection changed (alpha 0
-            # leftover from whichever image lost selection).
-            Color(rgba=(1, 1, 1, 1))
-            self._credit_rect = Rectangle(texture=self._credit_label.texture, size=self._credit_label.texture_size)
-        self._credit_label.bind(texture=self._update_credit_rect, texture_size=self._update_credit_rect)
-
         self.bind(pos=self._update_background_rect, size=self._update_background_rect)
         self._update_background_rect()
 
@@ -274,19 +235,6 @@ class CanvasArea(Widget):
         inset = theme.POZADIE_INSET
         self._background_image_rect.pos = (self.x + inset, self.y + inset)
         self._background_image_rect.size = (self.width - 2 * inset, self.height - 2 * inset)
-
-        self._position_credit_rect()
-
-    def _update_credit_rect(self, *_args):
-        self._credit_rect.texture = self._credit_label.texture
-        self._credit_rect.size = self._credit_label.texture_size
-        self._position_credit_rect()
-
-    def _position_credit_rect(self):
-        self._credit_rect.pos = (
-            self.center_x - self._credit_rect.size[0] / 2,
-            self.y + theme.CANVAS_CREDIT_MARGIN,
-        )
 
     def set_background_image(self, image_path):
         """Set (or, with None, clear back to just the canvas texture
